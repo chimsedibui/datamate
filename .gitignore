@@ -1,0 +1,8 @@
+.env
+.venv/
+.cache/
+work/
+__pycache__/
+*.pyc
+data/
+Knowledge/
