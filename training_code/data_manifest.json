@@ -7,7 +7,7 @@
     {
       "name": "Qwen3-14B",
       "source": "https://huggingface.co/Qwen/Qwen3-14B",
-      "revision": "TODO: commit sha",
+      "revision": "40c069824f4251a91eefaf281ebe4c544efd3e18",
       "license": "Apache-2.0",
       "local_path": "/code/models/Qwen3-14B",
       "checksums": "/code/models/Qwen3-14B.sha256"
