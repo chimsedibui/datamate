@@ -297,7 +297,7 @@ class Mapper:
             # model can use and would overflow its context window.
             call = messages if len(messages) <= 4 else messages[:2] + messages[-2:]
             # Thinking needs a large output budget, but prompt + output must fit the served context window.
-            est_prompt = sum(len(m["content"]) for m in call) // 3
+            est_prompt = int(sum(len(m["content"]) for m in call) / 2.5)  # Vietnamese + code: ~2.5 chars/token
             budget = max(4000, min(max_tokens, int(os.environ.get("LLM_CONTEXT", "40960")) - est_prompt - 512))
             res = self.llm.chat(call, max_tokens=budget, thinking=True)
             code = extract_code(res.content)
@@ -342,6 +342,11 @@ class Mapper:
             if not errs:
                 best = (code, tables, meta, report)
                 if not self.review or reviewed:
+                    break
+                # A review round costs about as much as the attempt that passed; on slow GPUs keep the time for
+                # other businesses (an L4 test spent 342 s on a review that answered OK).
+                if time.time() - t_start > 0.4 * max_s:
+                    entry["review"] = "skipped_time"
                     break
                 reviewed = True
                 messages.append({"role": "user", "content":

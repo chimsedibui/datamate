@@ -38,6 +38,7 @@ class BudgetExceeded(RuntimeError):
 
 _SPENT = [0.0]
 _SPENT_LOCK = threading.Lock()
+_CTX_ERR = re.compile(r"maximum context length is (\d+) tokens and your request has (\d+) input tokens")
 
 
 def spent_usd() -> float:
@@ -123,6 +124,14 @@ class LLM:
                 if "insufficient_quota" in str(e) or "credit" in str(e).lower():
                     raise
             except APIStatusError as e:
+                # vLLM rejects prompt + max_tokens > context; our token estimate can be short (Vietnamese, code),
+                # so retry once with the output budget that actually fits.
+                m = _CTX_ERR.search(str(e))
+                if e.status_code == 400 and m and "max_tokens" in req:
+                    fit = int(m.group(1)) - int(m.group(2)) - 16
+                    if 1024 <= fit < req["max_tokens"]:
+                        req = {**req, "max_tokens": fit}
+                        continue
                 if e.status_code < 500:
                     raise
             time.sleep(min(60, 5 * 2 ** attempt))

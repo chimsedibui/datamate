@@ -29,7 +29,8 @@ $D run --rm --gpus all --entrypoint "" vllm/vllm-openai:v0.10.1.1 nvidia-smi -L
 
 echo "== model weights (pinned revision, see scripts/download_model.sh)"
 if [ ! -s models/Qwen3-14B.sha256 ]; then
-  python3 -m pip install -q --user -U "huggingface_hub[cli]"
+  python3 -m pip --version >/dev/null 2>&1 || { sudo apt-get update -qq && sudo apt-get install -y -qq python3-pip; }
+  python3 -m pip install -q --user -U huggingface_hub
   export PATH="$HOME/.local/bin:$PATH"
   bash scripts/download_model.sh
 fi

@@ -19,8 +19,8 @@ for zone in $ZONES; do
       --maintenance-policy TERMINATE "${provisioning[@]}" \
       --image-family "$IMAGE_FAMILY" --image-project "$IMAGE_PROJECT" \
       --boot-disk-size "${DISK_GB}GB" --boot-disk-type "$DISK_TYPE" \
-      --metadata "install-nvidia-driver=True,startup-script=$startup" \
-      --labels "purpose=datamate-test,owner=khanh-tran" \
+      --shielded-secure-boot --shielded-vtpm --shielded-integrity-monitoring \
+      --metadata "block-project-ssh-keys=TRUE,enable-oslogin=TRUE,startup-script=$startup" \
       --scopes cloud-platform; then
     echo "$zone" > "$zone_file"
     echo "created $VM in $zone; first boot installs the NVIDIA driver (a few minutes)."

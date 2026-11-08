@@ -74,6 +74,15 @@ if ! curl -sf "http://127.0.0.1:$PORT/health" >/dev/null; then
 fi
 log "vLLM ready after $(( $(date +%s) - START ))s"
 
+# A build request holds ~30-40k tokens of KV cache. Builds beyond what fits only wait in vLLM's queue while their
+# per-business time cap runs (L4 test: 67k-token cache, 8 builds, most hit the cap), so match jobs to the cache.
+KV_TOKENS=$(grep -oE 'GPU KV cache size: [0-9,]+' "$RUNLOG/vllm.log" | head -1 | grep -oE '[0-9,]+$' | tr -d ,)
+if [ -n "$KV_TOKENS" ]; then
+  FIT=$(( KV_TOKENS / 36000 )); [ "$FIT" -lt 2 ] && FIT=2
+  [ "$FIT" -lt "$BUILD_JOBS" ] && BUILD_JOBS=$FIT
+fi
+log "KV cache ${KV_TOKENS:-?} tokens -> build jobs $BUILD_JOBS"
+
 $APP_PY "$CODE/src/predict.py" --split "$DATA" --work "$WORK" --out "$OUT" \
   --build --build-jobs "$BUILD_JOBS" --build-deadline "$BUILD_DEADLINE" \
   --deadline "$DEADLINE" --jobs "$QA_JOBS" 2>&1 | tee "$RUNLOG/predict.log"
