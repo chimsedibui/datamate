@@ -1,0 +1,16 @@
+{
+  "training_performed": false,
+  "data_generation_performed": false,
+  "datasets": [],
+  "checkpoints": [],
+  "inference_models": [
+    {
+      "name": "Qwen3-14B",
+      "source": "https://huggingface.co/Qwen/Qwen3-14B",
+      "revision": "TODO: commit sha",
+      "license": "Apache-2.0",
+      "local_path": "/code/models/Qwen3-14B",
+      "checksums": "/code/models/Qwen3-14B.sha256"
+    }
+  ]
+}

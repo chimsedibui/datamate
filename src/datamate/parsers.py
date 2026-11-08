@@ -56,10 +56,14 @@ _MULT = [
     (re.compile(r"(tri[eệ]u|tr|m)$"), 1_000_000),
     (re.compile(r"(ngh[iì]n|ng[aà]n|k)$"), 1_000),
 ]
+_INFIX_MULT = re.compile(r"^(\d+)\s*(tri[eệ]u|tr|m|ngh[iì]n|ng[aà]n|k)\s*(\d+)$")
 
 
-def _num_core(s: str) -> float | None:
-    """Parse a bare numeric string with ambiguous VN/EN separators."""
+def _num_core(s: str, scaled: bool = False) -> float | None:
+    """Parse a bare numeric string with ambiguous VN/EN separators.
+
+    scaled=True (a 'tr'/'k' suffix followed): a single separator is a decimal mark, '1,156tr' = 1.156 triệu.
+    """
     s = s.strip()
     if not s:
         return None
@@ -80,7 +84,7 @@ def _num_core(s: str) -> float | None:
         sep = "." if has_dot else ","
         parts = s.split(sep)
         # "55.000", "1.250.000" -> thousands; "1.5", "1,01" -> decimal
-        if len(parts) > 2 or (len(parts) == 2 and len(parts[1]) == 3 and parts[0] not in ("", "0")):
+        if len(parts) > 2 or (not scaled and len(parts) == 2 and len(parts[1]) == 3 and parts[0] not in ("", "0")):
             s = s.replace(sep, "")
         else:
             s = s.replace(sep, ".")
@@ -99,14 +103,19 @@ def _money_one(x):
     s = norm_text(x)
     s = re.sub(r"(vnđ|vnd|đồng|đ|d)$", "", s).strip()
     s = s.replace("₫", "").strip()
+    m = _INFIX_MULT.match(s)  # '1tr090' = 1.090 triệu, '1k5' = 1.5 nghìn
+    if m:
+        whole, unit, frac = m.groups()
+        mult = 1_000_000 if unit[0] in "tm" else 1_000
+        return round((int(whole) + int(frac) / 10 ** len(frac)) * mult, 6)
     mult = 1
     for rx, m in _MULT:
         if rx.search(s):
             s = rx.sub("", s).strip()
             mult = m
             break
-    v = _num_core(s)
-    return np.nan if v is None else v * mult
+    v = _num_core(s, scaled=mult > 1)
+    return np.nan if v is None else round(v * mult, 6)
 
 
 def parse_money(s):
@@ -233,3 +242,41 @@ def year_from_text(s: str) -> int | None:
     """Extract a 4-digit year from a sheet/file name such as 'Thang 02 2025' or 'T7-2025'."""
     m = re.search(r"(20\d{2})", str(s))
     return int(m.group(1)) if m else None
+
+
+# Folded (accent-free) keywords that unambiguously signal an order status. Checked in order: a label such as
+# 'không giao được' is cancelled before any delivering keyword is considered.
+STATUS_HINTS = [
+    ("cancelled", re.compile(r"\b(huy|cancel\w*|khong giao duoc|giao that bai|that bai|failed)\b")),
+    ("returned", re.compile(r"\b(tra hang|tra lai|tra ve|hoan tra|hoan hang|doi tra|return\w*|refund\w*)\b")),
+    ("delivering", re.compile(r"\b(dang giao|dang van chuyen|dang gui|dang ship|cho giao|shipping|delivering)\b")),
+]
+
+
+def status_hint(label):
+    """Status implied by keywords in a raw label/note, or None (e.g. 'Đã hủy đơn' -> 'cancelled')."""
+    if _is_blank(label):
+        return None
+    f = fold_text(label)
+    for status, rx in STATUS_HINTS:
+        if rx.search(f):
+            return status
+    return None
+
+
+def map_status(raw, mapping=None, default=None):
+    """Map raw status labels: keyword hints first, then `mapping` (label -> status, matched on norm_text),
+    else `default` (None keeps unknown labels null so validation reports them).
+    'completed' labels ('xong', 'ok', 'đã lấy'...) have no keyword and must be listed in `mapping`."""
+    m = {norm_text(k): v for k, v in (mapping or {}).items()}
+
+    def one(x):
+        h = status_hint(x)
+        if h:
+            return h
+        if _is_blank(x):
+            return m.get("", default)
+        return m.get(norm_text(x), default)
+    if not isinstance(raw, pd.Series):
+        return one(raw)
+    return raw.map(one).astype(object)

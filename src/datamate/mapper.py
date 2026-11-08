@@ -3,15 +3,18 @@
 Flow per business (run once, cached in the work dir):
     1. profile the folder (README + raw rows + column samples)
     2. LLM writes `load(raw)` Python code using our helper library
-    3. execute it, finalize dtypes, validate
+    3. execute it, sanitize unambiguous structural slips (validate.sanitize), finalize dtypes, validate
     4. on exceptions / validation errors, send feedback and retry
     5. one review round: LLM sees the load report and may fix subtle mistakes
 The accepted code, report and tables (parquet) are saved under <work>/<business_id>/.
 """
 from __future__ import annotations
 
+import hashlib
 import json
+import os
 import re
+import shutil
 import time
 import traceback
 from pathlib import Path
@@ -23,8 +26,8 @@ from . import parsers
 from .llm import LLM
 from .profile import profile_business
 from .rawio import RawStore
-from .schema import schema_prompt
-from .validate import finalize, validate
+from .schema import CORE_TABLES, schema_prompt
+from .validate import finalize, repair_tables, sanitize, validate
 
 HELPERS_DOC = '''
 `raw` (RawStore for this business folder):
@@ -47,6 +50,10 @@ Parsers (already imported, all accept a Series and return a Series):
 - norm_text(x) / fold_text(x)  scalar: NFC+lower+collapse spaces / same without diacritics (for matching labels)
 - ffill_group(df, key, cols)   fill blank cells of `cols` in follow-up rows of each `key` group (rulebook §8)
 - year_from_text(s)         4-digit year inside a sheet/file name, e.g. 'Thang 02 2025' -> 2025
+- map_status(s, mapping)    status from raw labels: keyword hints (hủy/huỷ/cancel -> cancelled; trả hàng/hoàn trả/
+                            đổi trả -> returned; đang giao/chờ giao -> delivering) first, then your `mapping` dict
+                            (label -> status) for the rest, e.g. {'xong': 'completed', 'ok': 'completed'};
+                            unknown labels stay null. finalize() also re-applies the keyword hints to status_raw.
 Also available: pd, np, re.
 '''
 
@@ -59,13 +66,18 @@ Mapping rules:
 4. orders.status must be one of completed / cancelled / returned / delivering, mapped from the shop's labels
    (e.g. 'đã xong','đã lấy','ok','hoàn thành' -> completed; 'hủy','huỷ','đã hủy đơn' -> cancelled;
    'trả hàng','hàng trả về','đổi trả','hoàn' -> returned; 'đang giao','chờ giao' -> delivering).
-   Inspect ALL VALUES in the profile and map every one. If there is no status column, the status is in the note
+   Use `status = map_status(status_raw, {...})` listing every non-keyword label from the profile (labels can
+   differ across sheets/files); never `.fillna('completed')` — an unmapped label must stay null so validation
+   reports it. If there is no status column, the status is in the note
    column; a note that does not mention a status means completed. Keep the original text in status_raw.
    An order with ANY returned item (even partial; e.g. a separate negative-quantity return row, a return slip)
    is a returned order: set its status to 'returned'. Do not keep negative return rows as order_lines
    (put them in the `returns` table if useful).
 5. One row per order in `orders` (order_id unique). If the file has no order code, build a stable one from the
-   fields that identify an order per the README (e.g. date+time+customer) and say so in meta['notes'].
+   fields that identify an order per the README (e.g. date+time+customer) and say so in meta['notes']. If nothing
+   identifies an order (no code, no time, no customer), every row is its own order: order_id = row number.
+   Never put product or status into a synthesised order_id. Build `orders` with a groupby/dedup on a COPY;
+   order_lines must keep every line of the line-level frame.
 6. Walk-in customers ('Khách lẻ', 'khách vãng lai', blank) -> customer_id and customer_name null.
    customer_id only when the shop really records customer codes.
 7. order_lines.qty_base = qty × factor of the line's unit (unit_conversions / README conversion notes); the base
@@ -88,7 +100,18 @@ Mapping rules:
 15. Any paid transaction is an order: a repair visit, service ticket, booking, appointment or rental is one
     `orders` row, its parts/services are `order_lines`. Omit `orders` only if the business records no paid
     transactions at all; then return everything as extra tables.
-16. Code must be deterministic and run in < 60 s. No file writes, no network, no printing large data.
+16. Build every non-core table (anything except orders / order_lines) inside its own
+    `try: ... except Exception as e: meta.setdefault('table_errors', {})[name] = repr(e)` so a mistake there never
+    breaks orders / order_lines. Do not wrap orders / order_lines.
+17. Never drop duplicate sales rows yourself (e.g. `df = df.drop_duplicates()` on the raw sales sheet):
+    finalize() applies rulebook §8. Deduplicating a catalogue / projected columns is fine.
+18. In raw.read_sql quote identifiers that are SQL keywords ("group", "order", ...).
+19. Code must be deterministic and run in < 60 s. No file writes, no network, no printing large data.
+20. Files/sheets that are copies of other data (archive, history, backup, bản sao, lưu trữ, _old, _bak, (1)) are
+    mapped only when the README says they hold sales not present elsewhere; never add them on top of the same
+    sales (double counting).
+21. purchases.amount is the LINE amount (qty × unit_cost after line discount); a receipt total repeated on every
+    line must not go into amount.
 '''
 
 OUTPUT_SPEC = '''
@@ -103,6 +126,7 @@ def load(raw):
     industry: short label (tạp hoá, cà phê, nhà hàng, nhà thuốc, vật liệu xây dựng, mẹ và bé, sửa xe, điện thoại, ...)
     has_customer_codes: bool   (customers identified by code, else by name)
     line_no_from_file: bool    (True only if the file has a real line-number column)
+    order_codes_from_file: bool (True only if order_id comes from a real order-code column; False if synthesised)
     data_end: 'YYYY-MM-DD' if the README states the last data day, else None
     notes: list of short strings — quirks that matter when answering questions (units, how debt is recorded...)
     extra_desc: dict extra_table_name -> description (may be empty)
@@ -119,6 +143,7 @@ export files into a fixed canonical schema (the semantic layer used to answer bu
 ## Business rulebook (defines meanings; the loader must keep enough information for these rules)
 {{rulebook}}
 {OUTPUT_SPEC}"""
+
 
 
 def extract_code(text: str) -> str | None:
@@ -143,10 +168,32 @@ def columns_overview(store: RawStore) -> str:
     return "\n".join(lines)
 
 
+def lint(code: str) -> list[str]:
+    """Static checks on loader code for mistakes validation cannot see."""
+    errs = []
+    m = re.search(r"\b(\w+)\s*=\s*\1\.drop_duplicates\(\s*\)", code)
+    if m:
+        errs.append(f"loader: `{m.group(0)}` removes legitimate repeated sales rows (identical rows of different "
+                    "orders, or of a table without order codes, are separate sales); remove it — finalize() applies "
+                    "rulebook §8 to order_lines")
+    if re.search(r"\.drop_duplicates\((?:[^)]*,\s*)?inplace\s*=\s*True", code) and \
+            not re.search(r"\.drop_duplicates\(\s*subset", code):
+        errs.append("loader: `drop_duplicates(inplace=True)` on raw rows removes legitimate repeated sales; remove it")
+    for m in re.finditer(r"\b(\w+)\s*=\s*\1\.drop_duplicates\(\s*subset\s*=\s*\[?\s*['\"]order_id['\"]\s*\]?\s*\)", code):
+        if re.search(rf"\border_lines\w*\s*=\s*{m.group(1)}\b", code[m.end():]):
+            errs.append(f"loader: `{m.group(0)}` keeps only the first line of each order, then order_lines is built "
+                        f"from `{m.group(1)}` — build order_lines from the full line-level frame and dedup only orders")
+    if re.search(r"dropna\(\s*subset\s*=\s*\[?\s*['\"]order_id['\"]\s*\]?\s*\)", code) and "ffill" not in code:
+        errs.append("loader: `dropna(subset=['order_id'])` drops follow-up lines whose order code is blank — by rulebook "
+                    "§8 a blank cell in a follow-up row repeats the row above: forward-fill the order code first "
+                    "(ffill_group / ffill), never drop those rows")
+    return errs
+
+
 def run_loader(code: str, store: RawStore):
     ns = {"pd": pd, "np": np, "re": re, "raw": store}
     for n in ("parse_money", "parse_number", "parse_datetime", "parse_date", "parse_qty_unit",
-              "norm_text", "fold_text", "ffill_group", "year_from_text"):
+              "norm_text", "fold_text", "ffill_group", "year_from_text", "map_status", "status_hint"):
         ns[n] = getattr(parsers, n)
     exec(compile(code, "<loader>", "exec"), ns)  # noqa: S102 - generated loader runs offline, read-only data
     tables, meta = ns["load"](store)
@@ -163,25 +210,83 @@ class Mapper:
         self.max_attempts = max_attempts
         self.review = review
 
+    def domain_summary(self, profile: str) -> dict | None:
+        """One short LLM call before writing the loader: industry, core entities, units and quirks.
+
+        Units/conversions are the main payoff (thùng/lon, xe 4m3, bao 50kg): wrong conversions were a leading cause
+        of wrong quantity/price answers. Failure is harmless (returns None)."""
+        prompt = ("Read this small Vietnamese business's README and file profile. Return ONLY a JSON object with keys:\n"
+                  '  "industry": short label,\n'
+                  '  "core_entities": list of what is sold/recorded (orders, products, customers, debts, stock...),\n'
+                  '  "units": list of {"product_or_group": str, "base_unit": str, "larger_units": {unit: factor}} '
+                  "stated or evident in the data (only what is written; empty list if none),\n"
+                  '  "quirks": list of short notes that matter for mapping (status labels, money formats, split files, '
+                  "header rows, walk-in markers, debt recording)\n\n" + profile[:20000])
+        try:
+            res = self.llm.chat([{"role": "user", "content": prompt}], max_tokens=1500, thinking=False)
+            m = re.search(r"\{.*\}", res.content, flags=re.S)
+            d = json.loads(m.group(0)) if m else None
+            return d if isinstance(d, dict) else None
+        except Exception:  # noqa: BLE001
+            return None
+
     def system_prompt(self) -> str:
         return SYSTEM.replace("{schema}", schema_prompt()).replace("{rulebook}", self.rulebook)
 
-    def build(self, biz_id: str, biz_dir: str, force: bool = False) -> dict:
+    def fingerprint(self, biz_dir: str) -> str:
+        """Hash of the build inputs: data files + README and rulebook.
+
+        The build model and mapping code / prompt changes are deliberately excluded (they would force paid rebuilds of every
+        business); use --retry-failed or --force after improving the mapper.
+        """
+        h = hashlib.sha256()
+        h.update(self.rulebook.encode())
+        for f in sorted(os.listdir(biz_dir)):
+            p = Path(biz_dir) / f
+            if p.is_file():
+                h.update(f.encode())
+                h.update(hashlib.sha256(p.read_bytes()).digest())
+        return h.hexdigest()[:16]
+
+    def build(self, biz_id: str, biz_dir: str, force: bool = False, retry_failed: bool = False) -> dict:
+        """Build (or reuse) the semantic layer. Reused only if the fingerprint matches.
+
+        Failed builds are cached as well (re-running the same prompts gives the same failure) unless
+        retry_failed. If only non-core tables are wrong, those tables are dropped and the build is
+        accepted as partial (meta['dropped_tables']).
+        """
         out = self.work / biz_id
         out.mkdir(parents=True, exist_ok=True)
-        if not force and (out / "loader.py").exists() and (out / "meta.json").exists():
-            return json.loads((out / "meta.json").read_text())
+        fp = self.fingerprint(biz_dir)
+        meta_p = out / "meta.json"
+        if not force and meta_p.exists():
+            old = json.loads(meta_p.read_text())
+            if old.get("fingerprint") == fp and (
+                    (old.get("ok") and (out / "loader.py").exists()) or (not old.get("ok") and not retry_failed)):
+                return old
+        for stale in ("meta.json", "loader.py", "report.txt"):  # keep the previous build for manual recovery
+            if (out / stale).exists():
+                (out / stale).replace(out / f"{stale}.prev")
+        if (out / "tables").exists():
+            shutil.rmtree(out / "tables")
         store = RawStore(biz_dir)
         profile = profile_business(store)
+        domain = self.domain_summary(profile)
         (out / "profile.md").write_text(profile)
+        dom = ("Domain summary (first read of README + profile; the README stays authoritative):\n"
+               + json.dumps(domain, ensure_ascii=False) + "\n\n") if domain else ""
         messages = [{"role": "system", "content": self.system_prompt()},
-                    {"role": "user", "content": f"Business id: {biz_id}\n\n{profile}\n\nWrite load(raw)."}]
+                    {"role": "user", "content": f"Business id: {biz_id}\n\n{dom}{profile}\n\nWrite load(raw)."}]
         log = []
         best = None
+        partial = None
         reviewed = False
         for attempt in range(1, self.max_attempts + 1):
             t = time.time()
-            res = self.llm.chat(messages, max_tokens=16000)
+            # Thinking needs a large output budget, but prompt + output must fit the served context window.
+            est_prompt = sum(len(m["content"]) for m in messages) // 3
+            budget = max(4000, min(24000, int(os.environ.get("LLM_CONTEXT", "40960")) - est_prompt - 512))
+            res = self.llm.chat(messages, max_tokens=budget, thinking=True)
             code = extract_code(res.content)
             entry = {"attempt": attempt, "llm_s": res.usage.get("latency_s"), "cached": res.cached,
                      "reasoning": res.reasoning}
@@ -196,9 +301,10 @@ class Mapper:
                 log.append(entry)
                 continue
             try:
-                tables, meta = run_loader(code, store)
+                tables, meta = sanitize(*run_loader(code, store))
                 tables = finalize(tables, meta)
                 errs, report = validate(tables, meta)
+                errs += lint(code)
             except Exception:  # noqa: BLE001
                 tb = traceback.format_exc(limit=6)
                 entry.update(result="exception", error=tb[-3000:])
@@ -211,6 +317,11 @@ class Mapper:
                 continue
             entry.update(result="errors" if errs else "valid", errors=errs, run_s=round(time.time() - t, 1))
             log.append(entry)
+            if errs and best is None:
+                cand = _drop_bad_tables(tables, meta, errs)
+                if cand is not None and (partial is None or len(cand[0]) > len(partial[1])):
+                    partial = (code, *cand)
+                    entry["partial_ok"] = sorted(cand[0])
             if not errs:
                 best = (code, tables, meta, report)
                 if not self.review or reviewed:
@@ -227,8 +338,10 @@ class Mapper:
                              "\n\nFix the code and return the full code."})
         (out / "build_log.json").write_text(json.dumps(log, ensure_ascii=False, indent=1, default=str))
         (out / "messages.json").write_text(json.dumps(messages, ensure_ascii=False, indent=1))
+        if best is None and partial is not None:
+            best = partial
         if best is None:
-            meta = {"biz_id": biz_id, "ok": False}
+            meta = {"biz_id": biz_id, "ok": False, "fingerprint": fp}
             (out / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1))
             return meta
         code, tables, meta, report = best
@@ -238,9 +351,60 @@ class Mapper:
         tdir.mkdir(exist_ok=True)
         for name, df in tables.items():
             df.to_parquet(tdir / f"{name}.parquet", index=False)
-        meta.update(biz_id=biz_id, ok=True, tables=sorted(tables))
+        meta.update(biz_id=biz_id, ok=True, tables=sorted(tables), fingerprint=fp)
+        if domain:
+            meta["domain"] = domain
         (out / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1, default=str))
         return meta
+
+
+def _error_table(err: str) -> str | None:
+    m = re.match(r"(?:table '|meta\['extra_desc'\] missing description for \[')?([a-z_]+)[.:' ]", err)
+    return m.group(1) if m else None
+
+
+def _drop_bad_tables(tables: dict, meta: dict, errs: list[str]):
+    """If every error belongs to a non-core table, drop those tables and re-validate.
+
+    Returns (tables, meta, report) of the reduced set, or None if a core table is wrong.
+    """
+    bad = {_error_table(e) for e in errs}
+    if None in bad or bad & (set(CORE_TABLES) | {"loader"}):
+        return None
+    kept = {k: v for k, v in tables.items() if k not in bad}
+    meta = dict(meta, dropped_tables=sorted(bad), dropped_reasons=errs)
+    meta.pop("table_errors", None)
+    errs2, report = validate(kept, meta)
+    return None if errs2 else (kept, meta, report)
+
+
+def refresh(work_dir: str | Path, biz_id: str, biz_dir: str) -> tuple[bool, list[str]]:
+    """Re-run a cached loader with the current parsers/finalize/validate (no LLM). Saves tables if still valid.
+
+    A build that now fails validation is marked ok=False (so the agent falls back to raw data) until rebuilt.
+    """
+    out = Path(work_dir) / biz_id
+    meta_p = out / "meta.json"
+    old = json.loads(meta_p.read_text())
+    code = (out / "loader.py").read_text()
+    tables, meta = sanitize(*run_loader(code, RawStore(biz_dir)))
+    tables = finalize(tables, meta)
+    errs, report = validate(tables, meta)
+    errs += lint(code)
+    keep = {k: old[k] for k in ("fingerprint", "biz_id") if k in old}
+    if errs:
+        meta_p.write_text(json.dumps({**old, "ok": False, "refresh_errors": errs}, ensure_ascii=False, indent=1,
+                                     default=str))
+        return False, errs
+    (out / "report.txt").write_text(report)
+    if (out / "tables").exists():
+        shutil.rmtree(out / "tables")
+    (out / "tables").mkdir()
+    for name, df in tables.items():
+        df.to_parquet(out / "tables" / f"{name}.parquet", index=False)
+    meta.update(keep, ok=True, tables=sorted(tables))
+    meta_p.write_text(json.dumps(meta, ensure_ascii=False, indent=1, default=str))
+    return True, []
 
 
 def load_semantic(work_dir: str | Path, biz_id: str) -> tuple[dict[str, pd.DataFrame], dict]:
@@ -248,4 +412,4 @@ def load_semantic(work_dir: str | Path, biz_id: str) -> tuple[dict[str, pd.DataF
     out = Path(work_dir) / biz_id
     meta = json.loads((out / "meta.json").read_text())
     tables = {p.stem: pd.read_parquet(p) for p in sorted((out / "tables").glob("*.parquet"))}
-    return tables, meta
+    return repair_tables(tables), meta

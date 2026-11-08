@@ -1,0 +1,15 @@
+.git
+.venv
+.cache
+.env
+.env.*
+!.env.example
+work
+out
+result
+data
+Knowledge
+**/__pycache__
+**/*.pyc
+*.tar
+*.tar.gz

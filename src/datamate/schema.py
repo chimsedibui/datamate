@@ -124,18 +124,20 @@ _t("payments", "Each money receipt against an order (phiếu thu, lần trả)."
     ("kind", "str", "'payment' (default), 'installment', 'refund', 'deposit'"),
 ])
 
-_t("purchases", "Purchase receipt lines (phiếu nhập hàng), one row per line.", [
+_t("purchases", "Purchase receipts (phiếu nhập hàng): one row per receipt line, or one row per receipt when the "
+               "data has no line detail (then leave product_name/qty null). Merge a receipt header table and its "
+               "line table into this one table.", [
     ("receipt_id", "str", "receipt code", True),
     ("receipt_date", "date", "receipt date (ngày phiếu)", True),
     ("supplier", "str", "supplier name"),
     ("status", "str", "'ok' or 'cancelled'"),
     ("product_id", "str", "FK products.product_id"),
-    ("product_name", "str", "product name on the receipt", True),
+    ("product_name", "str", "product name on the receipt (null for header-only receipts)"),
     ("unit", "str", "purchase unit"),
-    ("qty", "float", "quantity in purchase unit", True),
+    ("qty", "float", "quantity in purchase unit"),
     ("qty_base", "float", "quantity in base unit"),
     ("unit_cost", "float", "purchase price per purchase unit"),
-    ("amount", "float", "line amount", True),
+    ("amount", "float", "line amount (receipt total for header-only rows)", True),
     ("batch_id", "str", "batch / lot code"),
     ("expiry_date", "date", "expiry date of the batch"),
     ("note", "str", "e.g. 'nhập đầu kỳ'"),
