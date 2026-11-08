@@ -1,0 +1,25 @@
+[orders] 86142 rows; columns: ['order_id', 'order_datetime', 'order_date', 'status', 'status_raw', 'customer_id', 'customer_name']
+  orders.customer_id: 40.0% null
+  orders.customer_name: 40.0% null
+[order_lines] 137983 rows; columns: ['order_id', 'product_name', 'unit', 'qty', 'qty_base', 'unit_price', 'line_amount', 'line_no', 'is_fee']
+[products] 2 rows; columns: ['product_id', 'name', 'base_unit']
+[unit_conversions] 2 rows; columns: ['product_id', 'unit', 'factor']
+[stock] 50 rows; columns: ['product_id', 'product_name', 'qty_base', 'as_of_date']
+[purchases] 1373 rows; columns: ['receipt_id', 'receipt_date', 'supplier', 'product_name', 'unit', 'qty', 'qty_base', 'unit_cost', 'amount', 'note']
+  purchases.note: 96.4% null
+[price_history] 78 rows; columns: ['product_id', 'effective_date', 'price_base', 'old_price_base']
+  price_history.old_price_base: 64.1% null
+  order_date range 2025-02-01 .. 2026-06-24
+  orders per month: 2025-02:3981, 2025-03:4993, 2025-04:4757, 2025-05:4984, 2025-06:4944, 2025-07:5091, 2025-08:5324, 2025-09:5043, 2025-10:5465, 2025-11:5221, 2025-12:5389, 2026-01:5611, 2026-02:3848, 2026-03:5647, 2026-04:5495, 2026-05:5924, 2026-06:4425
+  order hours present: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+  status: {'completed': 84085, 'cancelled': 1676, 'returned': 350, 'delivering': 31}
+  customer_id: 257 distinct, 40.0% walk-in/null; top: {'Trần Dũng Hùng': 421, 'Doãn Dương Hải': 398, 'Triệu Phong Hoa': 397}
+  customer_name: 257 distinct, 40.0% walk-in/null; top: {'Trần Dũng Hùng': 421, 'Doãn Dương Hải': 398, 'Triệu Phong Hoa': 397}
+  qty: min -6.0, median 1.0, max 3.0, negatives 350
+  qty_base: min -6.0, median 1.0, max 6.0, negatives 350
+  line_amount: min -270000.0, median 41000.0, max 270000.0, negatives 350
+  qty*unit_price-line_discount == line_amount for 98.3% of lines
+  qty_base/qty factors seen: [1.0, 6.0]
+  completed revenue per month: 2025-02:274,341,000, 2025-03:346,783,500, 2025-04:326,449,800, 2025-05:342,660,600, 2025-06:336,518,900, 2025-07:353,636,400, 2025-08:368,766,700, 2025-09:348,311,500, 2025-10:379,300,800, 2025-11:359,106,000, 2025-12:377,663,800, 2026-01:389,514,000, 2026-02:269,031,700, 2026-03:398,881,600, 2026-04:384,850,400, 2026-05:413,212,000, 2026-06:312,961,300
+  purchases date range 2025-02-01 .. 2026-06-24
+meta: {'industry': 'cà phê', 'has_customer_codes': False, 'line_no_from_file': False, 'data_end': '2026-06-24', 'notes': ['Trả hàng: hàng trả ghi số lượng âm, cùng mã đơn với đơn đã bán', 'Tồn kho: Tồn cuối là tồn cuối ngày cuối có dữ liệu, theo đơn vị cơ bản', 'Nhập hàng: Giá nhập là giá nhập một đơn vị, theo đơn vị nhập của dòng; Thành tiền là tiền nhập của cả dòng', 'Giá bán: Giá mới áp dụng từ Ngày áp dụng đến trước lần đổi giá sau của cùng mặt hàng; dòng đầu mỗi mặt hàng là giá lúc bắt đầu dữ liệu (Giá cũ trống)', 'Quy đổi đơn vị: số lượng ghi theo đơn vị của dòng, hệ số quy đổi ở DanhMuc.xlsx'], 'extra_desc': {}, 'dropped_duplicate_lines': 2222}

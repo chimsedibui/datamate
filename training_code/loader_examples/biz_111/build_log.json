@@ -1,0 +1,41 @@
+[
+ {
+  "attempt": 1,
+  "llm_s": 13.5,
+  "cached": false,
+  "reasoning": null,
+  "result": "errors",
+  "errors": [
+   "order_lines: missing required column 'product_name'",
+   "order_lines.qty: 49.9% null (required)"
+  ],
+  "run_s": 16.0
+ },
+ {
+  "attempt": 2,
+  "llm_s": 18.69,
+  "cached": false,
+  "reasoning": null,
+  "result": "errors",
+  "errors": [
+   "order_lines.qty: 49.9% null (required)"
+  ],
+  "run_s": 21.0
+ },
+ {
+  "attempt": 3,
+  "llm_s": 17.0,
+  "cached": false,
+  "reasoning": null,
+  "result": "valid",
+  "errors": [],
+  "run_s": 19.4
+ },
+ {
+  "attempt": 4,
+  "llm_s": 8.86,
+  "cached": false,
+  "reasoning": null,
+  "result": "review_ok"
+ }
+]

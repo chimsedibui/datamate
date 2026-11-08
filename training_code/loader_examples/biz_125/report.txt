@@ -1,0 +1,20 @@
+[orders] 20977 rows; columns: ['order_id', 'order_datetime', 'order_date', 'status', 'status_raw', 'customer_id', 'customer_name', 'goods_total']
+  orders.customer_id: 40.5% null
+  orders.customer_name: 40.5% null
+[order_lines] 79052 rows; columns: ['order_id', 'line_no', 'product_name', 'unit', 'qty', 'qty_base', 'unit_price', 'line_amount', 'is_fee']
+[products] 62 rows; columns: ['product_id', 'name', 'base_unit']
+[unit_conversions] 8 rows; columns: ['product_id', 'unit', 'factor']
+  order_date range 2025-01-01 .. 2026-05-11
+  orders per month: 2025-01:1120, 2025-02:1037, 2025-03:1269, 2025-04:1238, 2025-05:1338, 2025-06:1341, 2025-07:1337, 2025-08:1326, 2025-09:1312, 2025-10:1358, 2025-11:1372, 2025-12:1341, 2026-01:1422, 2026-02:890, 2026-03:1353, 2026-04:1383, 2026-05:540
+  order hours present: [0]
+  status: {'completed': 20504, 'cancelled': 425, 'returned': 36, 'delivering': 12}
+  customer_id: 150 distinct, 40.5% walk-in/null; top: {'Phạm Sơn An': 109, 'Đỗ Hồng Duy': 107, 'Lâm An Hoàng': 106}
+  customer_name: 150 distinct, 40.5% walk-in/null; top: {'Phạm Sơn An': 109, 'Đỗ Hồng Duy': 107, 'Lâm An Hoàng': 106}
+  qty: min 1.0, median 1.0, max 10.0, negatives 0
+  qty_base: min 1.0, median 1.0, max 24.0, negatives 0
+  line_amount: min 1000.0, median 89000.0, max 2890000.0, negatives 0
+  qty*unit_price-line_discount == line_amount for 98.4% of lines
+  qty_base/qty factors seen: [1.0, 20.0, 24.0]
+  sum(line_amount) == orders.goods_total for 100.0% of orders
+  completed revenue per month: 2025-01:560,559,000, 2025-02:494,594,500, 2025-03:640,361,500, 2025-04:629,820,000, 2025-05:689,345,000, 2025-06:674,088,000, 2025-07:709,976,500, 2025-08:686,555,000, 2025-09:701,910,000, 2025-10:725,786,500, 2025-11:688,156,000, 2025-12:685,469,500, 2026-01:711,799,000, 2026-02:460,751,500, 2026-03:704,020,500, 2026-04:701,455,000, 2026-05:269,601,500
+meta: {'industry': 'nhà hàng', 'has_customer_codes': False, 'line_no_from_file': False, 'data_end': '2026-05-11', 'notes': ['Phí phục vụ là dòng hàng đặc biệt, không phải mặt hàng.', 'Quy đổi đơn vị theo README.'], 'extra_desc': {}, 'dropped_duplicate_lines': 0}

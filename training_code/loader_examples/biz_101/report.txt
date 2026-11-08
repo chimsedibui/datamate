@@ -1,0 +1,29 @@
+[orders] 22428 rows; columns: ['order_id', 'order_datetime', 'order_date', 'status', 'status_raw', 'customer_id', 'customer_name', 'customer_group', 'employee', 'branch', 'channel', 'payment_method', 'payment_method_raw', 'goods_total', 'order_discount', 'shipping_fee', 'vat', 'total_payable', 'paid_amount', 'debt_remaining', 'note']
+  orders.order_discount: 100.0% null
+  orders.shipping_fee: 100.0% null
+  orders.vat: 100.0% null
+  orders.total_payable: 100.0% null
+  orders.paid_amount: 100.0% null
+  orders.debt_remaining: 100.0% null
+[order_lines] 56501 rows; columns: ['order_id', 'line_no', 'product_id', 'product_name', 'unit', 'qty', 'qty_base', 'unit_price', 'line_discount', 'line_amount', 'cost_per_unit', 'is_fee']
+  order_lines.cost_per_unit: 100.0% null
+[products] 70 rows; columns: ['product_id', 'name', 'aliases', 'category', 'brand', 'base_unit', 'sell_price', 'cost_price', 'is_prescription', 'active_ingredient', 'size', 'is_prepared', 'active']
+  products.base_unit: 1.4% null
+  products.sell_price: 100.0% null
+  products.cost_price: 100.0% null
+[unit_conversions] 89 rows; columns: ['product_id', 'unit', 'factor']
+  order_date range 2025-06-01 .. 2026-08-24
+  orders per month: 2025-06:1319, 2025-07:1379, 2025-08:1404, 2025-09:1361, 2025-10:1436, 2025-11:1406, 2025-12:1392, 2026-01:1514, 2026-02:2353, 2026-03:1487, 2026-04:1459, 2026-05:1563, 2026-06:1551, 2026-07:1594, 2026-08:1210
+  order hours present: [0]
+  status: {'completed': 21386, 'cancelled': 699, 'returned': 333, 'delivering': 10}
+  payment_method: {'other': 22428}
+  customer_id: 1 distinct, 0.0% walk-in/null; top: {'<NA>': 22428}
+  customer_name: 261 distinct, 0.0% walk-in/null; top: {'<NA>': 9045, 'Đoàn Ngọc Huy': 73, 'Tống Phúc Hồng': 72}
+  qty: min 1.0, median 1.0, max 10.0, negatives 0
+  qty_base: min 1.0, median 1.0, max 150.0, negatives 0
+  line_amount: min 4000.0, median 24000.0, max 2610000.0, negatives 0
+  qty*unit_price-line_discount == line_amount for 98.8% of lines
+  qty_base/qty factors seen: [1.0, 4.0, 5.0, 6.0, 8.0, 10.0, 12.0, 20.0, 24.0, 25.0, 30.0, 32.0, 36.0, 40.0, 48.0]
+  sum(line_amount) == orders.goods_total for 100.0% of orders
+  completed revenue per month: 2025-06:202,856,500, 2025-07:213,712,600, 2025-08:204,564,500, 2025-09:210,504,100, 2025-10:204,477,500, 2025-11:233,605,800, 2025-12:202,934,300, 2026-01:245,184,900, 2026-02:346,181,100, 2026-03:232,535,600, 2026-04:226,998,400, 2026-05:236,600,600, 2026-06:238,924,600, 2026-07:236,132,200, 2026-08:190,312,700
+meta: {'industry': 'tạp hoá', 'has_customer_codes': False, 'line_no_from_file': False, 'data_end': '2026-08-24', 'notes': ['File bán hàng dạng phẳng, mỗi dòng là một dòng hàng.', 'Mã hóa đơn dùng làm order_id; ngày bán không có giờ nên order_datetime được chuẩn hoá về 00:00:00.', 'Cột Quy ra ĐV lẻ được dùng làm qty_base trực tiếp.', 'Kết quả có các trạng thái Xong / Đã hủy / Đổi trả / Đang giao; đơn có Đổi trả được gán status returned.', 'Không có cột phương thức thanh toán; payment_method được để other cho toàn bộ đơn.', 'Khách lẻ được coi là khách vãng lai; customer_id không có trong dữ liệu.'], 'extra_desc': {}, 'table_errors': {}, 'dropped_duplicate_lines': 0}

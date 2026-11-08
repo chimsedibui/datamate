@@ -1,0 +1,19 @@
+[orders] 18099 rows; columns: ['order_id', 'order_datetime', 'order_date', 'status', 'status_raw', 'customer_name', 'goods_total']
+  orders.customer_name: 40.2% null
+[order_lines] 39889 rows; columns: ['order_id', 'line_no', 'product_name', 'unit', 'qty', 'qty_base', 'unit_price', 'line_discount', 'line_amount', 'is_fee']
+[products] 55 rows; columns: ['product_id', 'name', 'category', 'base_unit', 'cost_price', 'active']
+[unit_conversions] 14 rows; columns: ['product_id', 'unit', 'factor']
+[deliveries] 35370 rows; columns: ['delivery_id', 'order_id', 'delivery_date', 'status', 'note']
+  order_date range 2025-05-01 .. 2026-09-03
+  orders per month: 2025-05:1072, 2025-06:1034, 2025-07:1100, 2025-08:1096, 2025-09:1094, 2025-10:1119, 2025-11:1073, 2025-12:1187, 2026-01:1171, 2026-02:758, 2026-03:1219, 2026-04:1190, 2026-05:1199, 2026-06:1154, 2026-07:1218, 2026-08:1263, 2026-09:152
+  order hours present: [0]
+  status: {'completed': 17642, 'cancelled': 342, 'returned': 105, 'delivering': 10}
+  customer_name: 220 distinct, 40.2% walk-in/null; top: {'Cao Sơn An': 65, 'Ngô Đạt Mai': 64, 'Lê Hồng Hằng': 64}
+  qty: min 1.0, median 1.0, max 20.0, negatives 0
+  qty_base: min 1.0, median 1.0, max 1000.0, negatives 0
+  line_amount: min 1300.0, median 220000.0, max 55200000.0, negatives 0
+  qty*unit_price-line_discount == line_amount for 98.4% of lines
+  qty_base/qty factors seen: [1.0, 4.0, 10.0, 20.0, 200.0, 1000.0]
+  sum(line_amount) == orders.goods_total for 100.0% of orders
+  completed revenue per month: 2025-05:1,651,773,800, 2025-06:1,331,078,300, 2025-07:1,568,604,200, 2025-08:1,365,534,500, 2025-09:1,430,133,000, 2025-10:1,413,973,100, 2025-11:1,423,804,300, 2025-12:1,603,499,200, 2026-01:1,565,438,800, 2026-02:1,069,913,200, 2026-03:1,677,825,700, 2026-04:1,526,413,100, 2026-05:1,672,378,000, 2026-06:1,510,997,000, 2026-07:1,614,026,000, 2026-08:1,588,804,700, 2026-09:192,116,900
+meta: {'industry': 'vật liệu xây dựng', 'has_customer_codes': False, 'line_no_from_file': False, 'data_end': '2026-09-03', 'notes': ['Units are recorded in various forms and need conversion to base units', 'Debt is recorded with due dates and allowed days', 'Delivery notes are recorded for certain product categories'], 'extra_desc': {}, 'dropped_duplicate_lines': 0}

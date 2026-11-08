@@ -1,0 +1,41 @@
+[orders] 51044 rows; columns: ['order_id', 'order_datetime', 'order_date', 'status', 'status_raw', 'customer_id', 'customer_name', 'employee', 'branch', 'channel', 'payment_method', 'payment_method_raw', 'goods_total', 'order_discount', 'shipping_fee', 'vat', 'total_payable', 'paid_amount', 'debt_remaining', 'note']
+  orders.customer_id: 40.4% null
+  orders.customer_name: 40.4% null
+  orders.branch: 100.0% null
+  orders.shipping_fee: 100.0% null
+  orders.vat: 100.0% null
+  orders.note: 100.0% null
+[order_lines] 95845 rows; columns: ['order_id', 'line_no', 'product_id', 'product_name', 'unit', 'qty', 'qty_base', 'unit_price', 'line_discount', 'line_amount', 'cost_per_unit', 'is_fee']
+[products] 80 rows; columns: ['product_id', 'name', 'aliases', 'category', 'brand', 'base_unit', 'sell_price', 'cost_price', 'is_prescription', 'active_ingredient', 'size', 'is_prepared', 'active']
+  products.aliases: 100.0% null
+  products.brand: 100.0% null
+  products.is_prescription: 100.0% null
+  products.active_ingredient: 100.0% null
+  products.size: 100.0% null
+[unit_conversions] 83 rows; columns: ['product_id', 'unit', 'factor']
+[customers] 380 rows; columns: ['customer_id', 'name', 'group', 'phone', 'registered_date']
+  customers.registered_date: 100.0% null
+[payments] 51238 rows; columns: ['payment_id', 'order_id', 'paid_datetime', 'amount', 'method', 'kind']
+[stock] 80 rows; columns: ['product_id', 'product_name', 'qty_base', 'as_of_date']
+[expenses] 75 rows; columns: ['expense_date', 'category', 'amount', 'note']
+  expenses.note: 97.3% null
+[purchases] 3943 rows; columns: ['receipt_id', 'receipt_date', 'supplier', 'status', 'product_id', 'product_name', 'unit', 'qty', 'qty_base', 'unit_cost', 'amount', 'batch_id', 'expiry_date', 'note']
+  purchases.product_id: 100.0% null
+  purchases.qty_base: 100.0% null
+  purchases.note: 98.0% null
+  order_date range 2025-01-01 .. 2026-05-25
+  orders per month: 2025-01:2854, 2025-02:2555, 2025-03:2888, 2025-04:2634, 2025-05:2968, 2025-06:2824, 2025-07:2945, 2025-08:3091, 2025-09:2933, 2025-10:3084, 2025-11:3094, 2025-12:3313, 2026-01:3237, 2026-02:3198, 2026-03:3379, 2026-04:3329, 2026-05:2718
+  order hours present: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+  status: {'completed': 50082, 'cancelled': 500, 'returned': 435, 'delivering': 27}
+  payment_method: {'cash': 25126, 'transfer': 17729, 'ewallet': 4896, 'cod': 2692, 'debt': 601}
+  customer_id: 380 distinct, 40.4% walk-in/null; top: {'KH0138': 107, 'KH0322': 106, 'KH0212': 105}
+  customer_name: 634 distinct, 40.4% walk-in/null; top: {'Đinh Đức Bình': 107, 'Kiều Dũng Thu': 106, 'Doãn Phúc Quân': 105}
+  qty: min 1.0, median 1.0, max 10.0, negatives 0
+  qty_base: min 1.0, median 2.0, max 500.0, negatives 0
+  line_amount: min 500.0, median 12000.0, max 4500000.0, negatives 0
+  qty*unit_price-line_discount == line_amount for 100.0% of lines
+  qty_base/qty factors seen: [1.0, 4.0, 7.0, 8.0, 10.0, 12.0, 14.0, 16.0, 20.0, 24.0, 25.0, 26.0, 30.0, 50.0, 60.0]
+  sum(line_amount) == orders.goods_total for 100.0% of orders
+  completed revenue per month: 2025-01:314,535,600, 2025-02:287,349,800, 2025-03:321,974,600, 2025-04:287,435,200, 2025-05:346,554,700, 2025-06:309,693,800, 2025-07:328,957,800, 2025-08:351,993,200, 2025-09:302,746,900, 2025-10:350,177,800, 2025-11:363,955,500, 2025-12:360,104,700, 2026-01:370,908,900, 2026-02:376,353,600, 2026-03:389,533,100, 2026-04:367,261,000, 2026-05:314,604,200
+  purchases date range 2025-01-01 .. 2026-05-25
+meta: {'industry': 'nhà thuốc', 'has_customer_codes': True, 'line_no_from_file': True, 'data_end': '2026-05-25', 'notes': ["Debt recorded with remaining amount in 'Còn nợ'", 'Unit conversions provided in BanHang_DonViQuyDoi.xlsx', 'Prescription drugs marked in BanHang_Thuoc.xlsx'], 'extra_desc': {}, 'dropped_duplicate_lines': 1188}

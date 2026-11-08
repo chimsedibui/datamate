@@ -1,0 +1,38 @@
+[orders] 32994 rows; columns: ['order_id', 'order_datetime', 'order_date', 'status', 'status_raw', 'customer_id', 'customer_name', 'customer_group', 'employee', 'branch', 'channel', 'payment_method', 'payment_method_raw', 'goods_total', 'order_discount', 'shipping_fee', 'vat', 'total_payable', 'paid_amount', 'debt_remaining', 'note']
+  orders.customer_id: 100.0% null
+  orders.customer_name: 100.0% null
+  orders.customer_group: 100.0% null
+  orders.employee: 100.0% null
+  orders.branch: 100.0% null
+  orders.channel: 100.0% null
+  orders.payment_method: 100.0% null
+  orders.payment_method_raw: 100.0% null
+  orders.paid_amount: 100.0% null
+  orders.debt_remaining: 100.0% null
+  orders.note: 100.0% null
+[order_lines] 32994 rows; columns: ['order_id', 'line_no', 'product_id', 'product_name', 'unit', 'qty', 'qty_base', 'unit_price', 'line_discount', 'line_amount', 'cost_per_unit', 'is_fee']
+  order_lines.cost_per_unit: 100.0% null
+[products] 73 rows; columns: ['product_id', 'name', 'aliases', 'category', 'brand', 'base_unit', 'sell_price', 'cost_price', 'is_prescription', 'active_ingredient', 'size', 'is_prepared', 'active']
+  products.aliases: 100.0% null
+  products.category: 100.0% null
+  products.brand: 100.0% null
+  products.sell_price: 2.7% null
+  products.cost_price: 100.0% null
+  products.active_ingredient: 100.0% null
+  products.size: 100.0% null
+[unit_conversions] 87 rows; columns: ['product_id', 'unit', 'factor']
+  order_date range 2025-02-01 .. 2026-08-09
+  orders per month: 2025-02:1472, 2025-03:1716, 2025-04:1771, 2025-05:1807, 2025-06:1691, 2025-07:1801, 2025-08:1817, 2025-09:1773, 2025-10:1794, 2025-11:1844, 2025-12:1947, 2026-01:2012, 2026-02:1200, 2026-03:1763, 2026-04:2000, 2026-05:2027, 2026-06:1939, 2026-07:1982, 2026-08:638
+  order hours present: [0]
+  status: {'completed': 32112, 'cancelled': 657, 'returned': 214, 'delivering': 11}
+  payment_method: {None: 32994}
+  customer_id: 0 distinct, 100.0% walk-in/null; top: {}
+  customer_name: 0 distinct, 100.0% walk-in/null; top: {}
+  qty: min 1.0, median 1.0, max 20.0, negatives 0
+  qty_base: min 1.0, median 1.0, max 1000.0, negatives 0
+  line_amount: min 1300.0, median 190000.0, max 55200000.0, negatives 0
+  qty*unit_price-line_discount == line_amount for 98.4% of lines
+  qty_base/qty factors seen: [1.0, 4.0, 10.0, 20.0, 200.0, 1000.0]
+  sum(line_amount) == orders.goods_total for 100.0% of orders
+  completed revenue per month: 2025-02:855,336,600, 2025-03:912,810,600, 2025-04:985,630,700, 2025-05:997,105,900, 2025-06:910,179,600, 2025-07:1,076,771,800, 2025-08:1,099,120,200, 2025-09:1,006,184,400, 2025-10:988,489,400, 2025-11:1,255,346,000, 2025-12:1,101,154,900, 2026-01:1,098,522,300, 2026-02:805,666,200, 2026-03:1,020,474,600, 2026-04:1,155,128,400, 2026-05:1,204,545,000, 2026-06:1,084,458,900, 2026-07:1,105,280,300, 2026-08:387,386,800
+meta: {'industry': 'vật liệu xây dựng', 'has_customer_codes': False, 'line_no_from_file': False, 'data_end': '2026-08-09', 'notes': ['No order codes or customer names in source; each row treated as a separate order', 'Qty_base column already converted to base unit per README conversion rules', 'Status values: xong=completed, khách hủy=cancelled, trả hàng=returned, Đang vận chuyển=delivering', 'Unit conversions defined in README for specific products; other products use shown unit as base unit', 'No payment, cost, or inventory data recorded'], 'extra_desc': {}, 'dropped_duplicate_lines': 0}

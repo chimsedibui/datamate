@@ -1,0 +1,50 @@
+[
+ {
+  "attempt": 1,
+  "llm_s": 14.87,
+  "cached": false,
+  "reasoning": null,
+  "result": "exception",
+  "error": "Traceback (most recent call last):\n  File \"/home/khanhxoe/work/10.DataMate/src/datamate/mapper.py\", line 200, in build\n    tables = finalize(tables, meta)\n             ^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/khanhxoe/work/10.DataMate/src/datamate/validate.py\", line 44, in finalize\n    raise ValueError(f\"table '{name}' has duplicate column names {dups} (a rename collided with an \"\nValueError: table 'deliveries' has duplicate column names ['delivery_date'] (a rename collided with an existing column); keep only one column per name\n"
+ },
+ {
+  "attempt": 2,
+  "llm_s": 14.26,
+  "cached": false,
+  "reasoning": null,
+  "result": "errors",
+  "errors": [
+   "order_lines.qty: 38.8% null (required)",
+   "deliveries: unknown columns ['delivery_date_parsed'] (use only schema columns, or return them in an extra table)",
+   "deliveries: missing required column 'delivery_date'"
+  ],
+  "run_s": 15.3
+ },
+ {
+  "attempt": 3,
+  "llm_s": 16.53,
+  "cached": false,
+  "reasoning": null,
+  "result": "errors",
+  "errors": [
+   "order_lines.qty: 60.1% null (required)"
+  ],
+  "run_s": 17.7
+ },
+ {
+  "attempt": 4,
+  "llm_s": 39.39,
+  "cached": false,
+  "reasoning": null,
+  "result": "valid",
+  "errors": [],
+  "run_s": 40.5
+ },
+ {
+  "attempt": 5,
+  "llm_s": 3.89,
+  "cached": false,
+  "reasoning": null,
+  "result": "review_ok"
+ }
+]

@@ -1,0 +1,17 @@
+[orders] 34165 rows; columns: ['order_id', 'order_datetime', 'order_date', 'status_raw', 'status', 'customer_name', 'goods_total']
+[order_lines] 86029 rows; columns: ['order_id', 'line_no', 'product_id', 'product_name', 'unit', 'qty', 'qty_base', 'unit_price', 'line_amount', 'is_fee']
+[products] 60 rows; columns: ['product_id', 'name', 'base_unit']
+[unit_conversions] 77 rows; columns: ['product_id', 'unit', 'factor']
+  order_date range 2025-01-01 .. 2026-06-16
+  orders per month: 2025-01:2711, 2025-02:2367, 2025-03:1887, 2025-04:1769, 2025-05:1876, 2025-06:1729, 2025-07:1848, 2025-08:1833, 2025-09:1755, 2025-10:1869, 2025-11:1768, 2025-12:1783, 2026-01:1870, 2026-02:2889, 2026-03:1825, 2026-04:1732, 2026-05:1748, 2026-06:906
+  order hours present: [0]
+  status: {'completed': 32614, 'cancelled': 989, 'returned': 554, 'delivering': 8}
+  customer_name: 351 distinct, 0.0% walk-in/null; top: {'<NA>': 13680, 'Cao Thảo Hằng': 83, 'Phan Giang Hằng': 81}
+  qty: min 1.0, median 1.0, max 10.0, negatives 0
+  qty_base: min 1.0, median 1.0, max 150.0, negatives 0
+  line_amount: min 4000.0, median 25000.0, max 3744000.0, negatives 0
+  qty*unit_price-line_discount == line_amount for 98.6% of lines
+  qty_base/qty factors seen: [1.0, 4.0, 5.0, 6.0, 8.0, 10.0, 12.0, 20.0, 24.0, 25.0, 30.0, 32.0, 36.0, 40.0, 48.0]
+  sum(line_amount) == orders.goods_total for 100.0% of orders
+  completed revenue per month: 2025-01:435,803,500, 2025-02:357,633,200, 2025-03:287,270,000, 2025-04:274,547,600, 2025-05:280,331,200, 2025-06:266,080,100, 2025-07:282,063,000, 2025-08:278,031,800, 2025-09:282,293,200, 2025-10:285,797,800, 2025-11:286,967,300, 2025-12:274,050,700, 2026-01:321,145,500, 2026-02:468,619,600, 2026-03:281,381,900, 2026-04:280,724,700, 2026-05:275,687,800, 2026-06:149,471,500
+meta: {'industry': 'tạp hoá', 'has_customer_codes': False, 'line_no_from_file': False, 'data_end': '2026-06-16', 'notes': ['DonHang_ChiTiet.xlsx là file Excel nhiều sheet theo tháng; mỗi dòng là một sản phẩm của đơn.', 'Mã đơn hàng lặp lại theo từng dòng sản phẩm; line_no được sinh theo thứ tự dòng trong mỗi đơn.', "Trạng thái 'Đã hoàn thành' → completed, 'Đã hủy' → cancelled, 'Đã hoàn hàng' → returned.", "Tên khách dạng khách lẻ / vãng lai được coi là walk-in và để null; ngoài 'lẻ' còn có thể ghi tắt là 'kl'.", "Số lượng có thể kèm luôn đơn vị trong cùng ô (ví dụ '1 bao 25kg'); quy đổi đơn vị lấy từ DanhSachQuyDoi.xlsx.", 'Không có mã khách; khách chỉ là tên ghi trên đơn nếu không phải khách lẻ.'], 'extra_desc': {}, 'dropped_duplicate_lines': 0}

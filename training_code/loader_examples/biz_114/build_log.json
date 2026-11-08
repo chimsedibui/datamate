@@ -1,0 +1,31 @@
+[
+ {
+  "attempt": 1,
+  "llm_s": 19.08,
+  "cached": false,
+  "reasoning": null,
+  "result": "errors",
+  "errors": [
+   "products: unknown columns ['unit_x', 'unit_y', 'factor'] (use only schema columns, or return them in an extra table)",
+   "unit_conversions: unknown columns ['product_name'] (use only schema columns, or return them in an extra table)",
+   "unit_conversions: missing required column 'product_id'"
+  ],
+  "run_s": 19.6
+ },
+ {
+  "attempt": 2,
+  "llm_s": 10.78,
+  "cached": false,
+  "reasoning": null,
+  "result": "valid",
+  "errors": [],
+  "run_s": 11.3
+ },
+ {
+  "attempt": 3,
+  "llm_s": 10.37,
+  "cached": false,
+  "reasoning": null,
+  "result": "review_ok"
+ }
+]

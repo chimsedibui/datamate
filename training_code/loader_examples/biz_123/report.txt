@@ -1,0 +1,41 @@
+[orders] 33630 rows; columns: ['order_id', 'order_datetime', 'order_date', 'status_raw', 'customer_id', 'customer_name', 'customer_group', 'employee', 'branch', 'channel', 'payment_method_raw', 'goods_total', 'order_discount', 'shipping_fee', 'vat', 'total_payable', 'paid_amount', 'debt_remaining', 'note', 'status']
+  orders.customer_id: 40.3% null
+  orders.customer_name: 100.0% null
+  orders.customer_group: 100.0% null
+  orders.note: 100.0% null
+[order_lines] 62941 rows; columns: ['order_id', 'line_no', 'product_id', 'product_name', 'unit', 'qty', 'qty_base', 'unit_price', 'line_discount', 'line_amount', 'cost_per_unit', 'is_fee']
+[products] 80 rows; columns: ['product_id', 'name', 'aliases', 'category', 'brand', 'base_unit', 'sell_price', 'cost_price', 'is_prescription', 'active_ingredient', 'size', 'is_prepared', 'active']
+  products.aliases: 100.0% null
+  products.brand: 100.0% null
+  products.active_ingredient: 21.2% null
+  products.size: 100.0% null
+  products.is_prepared: 100.0% null
+[unit_conversions] 83 rows; columns: ['product_id', 'unit', 'factor']
+[customers] 300 rows; columns: ['customer_id', 'name', 'group', 'phone', 'registered_date']
+[payments] 33816 rows; columns: ['payment_id', 'order_id', 'paid_datetime', 'amount', 'method', 'kind']
+[purchases] 2953 rows; columns: ['receipt_id', 'receipt_date', 'supplier', 'status', 'product_id', 'product_name', 'unit', 'qty', 'qty_base', 'unit_cost', 'amount', 'batch_id', 'expiry_date', 'note']
+  purchases.note: 97.3% null
+[stock] 2 rows; columns: ['product_id', 'product_name', 'qty_base', 'as_of_date']
+[batches] 2953 rows; columns: ['batch_id', 'product_id', 'expiry_date', 'qty_in_base', 'unit_cost_base', 'receipt_id']
+[batch_sales] 64422 rows; columns: ['order_id', 'line_no', 'batch_id', 'qty_base', 'qty_returned_base']
+[price_history] 109 rows; columns: ['product_id', 'effective_date', 'price_base', 'old_price_base']
+  price_history.old_price_base: 100.0% null
+[returns] 273 rows; columns: ['return_id', 'order_id', 'return_datetime', 'refund_amount', 'reason']
+  returns.reason: 23.4% null
+[deliveries] 62288 rows; columns: ['order_id', 'delivery_date', 'status', 'note']
+  deliveries.note: 100.0% null
+  order_date range 2025-01-01 .. 2026-06-28
+  orders per month: 2025-01:2073, 2025-02:1820, 2025-03:2008, 2025-04:1908, 2025-05:2013, 2025-06:1974, 2025-07:1876, 2025-08:1988, 2025-09:1917, 2025-10:1888, 2025-11:1872, 2025-12:1898, 2026-01:1789, 2026-02:1763, 2026-03:1878, 2026-04:1705, 2026-05:1733, 2026-06:1527
+  order hours present: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+  status: {'completed': 32992, 'cancelled': 349, 'returned': 273, 'delivering': 16}
+  customer_id: 300 distinct, 40.3% walk-in/null; top: {'KH0125': 88, 'KH0112': 87, 'KH0133': 86}
+  customer_name: 0 distinct, 100.0% walk-in/null; top: {}
+  qty: min 1.0, median 1.0, max 10.0, negatives 0
+  qty_base: min 1.0, median 2.0, max 500.0, negatives 0
+  line_amount: min 500.0, median 10600.0, max 4500000.0, negatives 0
+  qty*unit_price-line_discount == line_amount for 100.0% of lines
+  qty_base/qty factors seen: [1.0, 4.0, 7.0, 8.0, 10.0, 12.0, 14.0, 16.0, 20.0, 24.0, 25.0, 26.0, 30.0, 50.0, 60.0]
+  sum(line_amount) == orders.goods_total for 100.0% of orders
+  completed revenue per month: 2025-01:231,295,400, 2025-02:197,963,000, 2025-03:207,089,500, 2025-04:208,231,500, 2025-05:210,378,000, 2025-06:222,778,900, 2025-07:205,146,100, 2025-08:213,282,700, 2025-09:197,973,500, 2025-10:202,375,900, 2025-11:202,163,300, 2025-12:206,232,600, 2026-01:206,997,300, 2026-02:186,484,900, 2026-03:214,253,000, 2026-04:181,141,700, 2026-05:189,217,400, 2026-06:163,151,100
+  purchases date range 2025-01-01 .. 2026-06-28
+meta: {'industry': 'nhà thuốc', 'has_customer_codes': True, 'line_no_from_file': True, 'data_end': '2026-06-28', 'notes': ['SLQuyDoi is already in base units', 'GiaVonLucBan is cost price per unit at sale', 'TongThanhToan includes order-level adjustments', 'TienHoanTra is refund amount', 'PhuongThucTT maps to payment methods'], 'extra_desc': {}, 'dropped_duplicate_lines': 1208}

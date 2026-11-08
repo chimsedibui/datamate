@@ -1,0 +1,431 @@
+{
+ "description": "Validated semantic-layer loaders generated during development for the provided training businesses; shipped as few-shot examples in src/datamate/loader_examples.json",
+ "source_split": "train (provided training data only; no public/private test data)",
+ "library": {
+  "path": "src/datamate/loader_examples.json",
+  "sha256": "b7f4945cf9ecc1d8b9de4bc88d2afde7ea5cf70c14430219a26741066d155f50",
+  "examples": 21
+ },
+ "files": [
+  {
+   "path": "training_code/loader_examples/biz_101/loader.py",
+   "bytes": 11646,
+   "sha256": "ec16447dc50ce7a37219756877400909af8df5a2543c83ba258d11c42e7ca3e5"
+  },
+  {
+   "path": "training_code/loader_examples/biz_101/messages.json",
+   "bytes": 93749,
+   "sha256": "68e0b0623b0dfef96fe2b24583b76f789e7a7ce206fd9d66dc4737b8adc8d8ea"
+  },
+  {
+   "path": "training_code/loader_examples/biz_101/build_log.json",
+   "bytes": 2060,
+   "sha256": "d8482405e5ab8b507e51e310fecf7bca51dac7554eac7529ab9f4192f099c858"
+  },
+  {
+   "path": "training_code/loader_examples/biz_101/report.txt",
+   "bytes": 3307,
+   "sha256": "2d2cb800047b52818ac529115ceffb1bed9202d3b476afeda62c492898f8ec47"
+  },
+  {
+   "path": "training_code/loader_examples/biz_102/loader.py",
+   "bytes": 10571,
+   "sha256": "9a84c317858a69ccc543df8a04f1ad0b88185def4a82729cded0d97b40b36e9f"
+  },
+  {
+   "path": "training_code/loader_examples/biz_102/messages.json",
+   "bytes": 66199,
+   "sha256": "3282ad21916f14a6e19e260cd546c5ea5fbdcfd55f9794e5e62610e70752b78f"
+  },
+  {
+   "path": "training_code/loader_examples/biz_102/build_log.json",
+   "bytes": 270,
+   "sha256": "7ab12156dfc0c88b21a15b9810151a919708a59c13df65bbfa6ef2f225b01cdf"
+  },
+  {
+   "path": "training_code/loader_examples/biz_102/report.txt",
+   "bytes": 2695,
+   "sha256": "6d9b3b82ff9080fe211c628f9bcba8cc8bd531e937d2b2f2f3b11f84c5cc0e43"
+  },
+  {
+   "path": "training_code/loader_examples/biz_104/loader.py",
+   "bytes": 7291,
+   "sha256": "cbf6256e7b52055a673f7861639304b5e3d137d7716b5045251e3096435bd408"
+  },
+  {
+   "path": "training_code/loader_examples/biz_104/messages.json",
+   "bytes": 49525,
+   "sha256": "bc30bd9edeb71339cce363a3d3d4c66309dda0b18b1dfe41dd4bc4da122bda95"
+  },
+  {
+   "path": "training_code/loader_examples/biz_104/build_log.json",
+   "bytes": 240,
+   "sha256": "29d0268adbc79a6d90795c6f790a51095d115041004d9296be61bf037bcf7efc"
+  },
+  {
+   "path": "training_code/loader_examples/biz_104/report.txt",
+   "bytes": 2053,
+   "sha256": "e4bd690bb0dee1d30001c08114c15318ff5b795e344dbfef78665e0e10f8163d"
+  },
+  {
+   "path": "training_code/loader_examples/biz_105/loader.py",
+   "bytes": 8072,
+   "sha256": "28252b74062806bcf34d47c9985ff056d32f15e0670b120f414cac05c0df2bfb"
+  },
+  {
+   "path": "training_code/loader_examples/biz_105/messages.json",
+   "bytes": 79154,
+   "sha256": "d4f68b2eead6ba159e0c7606b5739cc36c3a92864bc5adb197d696e1acb1574a"
+  },
+  {
+   "path": "training_code/loader_examples/biz_105/build_log.json",
+   "bytes": 39387,
+   "sha256": "3514ed5de2a2aefa115144fcdd4ac3cab1178190abfb75b3dbd66781739a3c51"
+  },
+  {
+   "path": "training_code/loader_examples/biz_105/report.txt",
+   "bytes": 3177,
+   "sha256": "373d33cc887b41e22a0b4cc5bb5009ef6e5c3aa2d0b1c4955364bcc549bd67a5"
+  },
+  {
+   "path": "training_code/loader_examples/biz_107/loader.py",
+   "bytes": 7571,
+   "sha256": "2eddf89a0745a67b134beabc8fa7a37399eee0e789f895184955bf529a8ebf43"
+  },
+  {
+   "path": "training_code/loader_examples/biz_107/messages.json",
+   "bytes": 62387,
+   "sha256": "ef07a3e095803fbd266c2e9c19f66ccbbf25b4afbde850a5fd83ca0c9a702574"
+  },
+  {
+   "path": "training_code/loader_examples/biz_107/build_log.json",
+   "bytes": 701,
+   "sha256": "0df72cf76fefe540f00ec2e704ce0f2fe0572f8ca48363a951459d8d2b54c310"
+  },
+  {
+   "path": "training_code/loader_examples/biz_107/report.txt",
+   "bytes": 3169,
+   "sha256": "dd7fb8315c53604537024cb93beed7eb53930ee70c39104821110ca6ea5714c9"
+  },
+  {
+   "path": "training_code/loader_examples/biz_109/loader.py",
+   "bytes": 9378,
+   "sha256": "d517746313717913f2117575472e931d89f070f01f91d04cde09df9674c8f31f"
+  },
+  {
+   "path": "training_code/loader_examples/biz_109/messages.json",
+   "bytes": 123110,
+   "sha256": "834120e5a6c2eec4173d067c6264913394a1185359a708a5b72f316a48b43884"
+  },
+  {
+   "path": "training_code/loader_examples/biz_109/build_log.json",
+   "bytes": 1468,
+   "sha256": "42ed6bc1d1767ca5cd458119cbf5f1c150ccf2266dfe63be5d16ad90c7fbe764"
+  },
+  {
+   "path": "training_code/loader_examples/biz_109/report.txt",
+   "bytes": 3693,
+   "sha256": "1fd2f949b7750f9a7e7ad7191d9ad29422b9af7cd8ebfe14db904797c0e733cb"
+  },
+  {
+   "path": "training_code/loader_examples/biz_110/loader.py",
+   "bytes": 2431,
+   "sha256": "732999eaf7dce3e1ba304058a83c93dbe2d8a80673efcbc86a696ae5695414e1"
+  },
+  {
+   "path": "training_code/loader_examples/biz_110/messages.json",
+   "bytes": 44567,
+   "sha256": "975924dde91139777b2eab55081c33b35d77602fd98502d41544bcb09b0c4ab2"
+  },
+  {
+   "path": "training_code/loader_examples/biz_110/build_log.json",
+   "bytes": 730,
+   "sha256": "f71c5c91a588feaf700ce5f73b0c059e6ae89b9a0a9aee3e703e18000d81e3a7"
+  },
+  {
+   "path": "training_code/loader_examples/biz_110/report.txt",
+   "bytes": 1506,
+   "sha256": "68ff531b634a3a209a4773e0f1b647de4280d9113f97555a978b04f14c618ed2"
+  },
+  {
+   "path": "training_code/loader_examples/biz_111/loader.py",
+   "bytes": 6322,
+   "sha256": "8bf8e68b32812c444bf157a844bf46f386ab496af2195185b2cfdcdaff4b2179"
+  },
+  {
+   "path": "training_code/loader_examples/biz_111/messages.json",
+   "bytes": 75240,
+   "sha256": "7a0ddd7e38234593202cdaadff17d3a593244ff1049be636d25b4dce26d5f011"
+  },
+  {
+   "path": "training_code/loader_examples/biz_111/build_log.json",
+   "bytes": 660,
+   "sha256": "88026af9fd2bc0daf899e9bdf3d09ee7cde181a25451f74a1ff1ecb8fab13f8b"
+  },
+  {
+   "path": "training_code/loader_examples/biz_111/report.txt",
+   "bytes": 3132,
+   "sha256": "f8f459ce7300c6c4691351a4789f80eaeba851485da01f761016071244036084"
+  },
+  {
+   "path": "training_code/loader_examples/biz_112/loader.py",
+   "bytes": 5192,
+   "sha256": "8eb6673032de0ea60ecef24fbf4cd756d046e1f725b8e03d10b681562e77b0aa"
+  },
+  {
+   "path": "training_code/loader_examples/biz_112/messages.json",
+   "bytes": 71864,
+   "sha256": "5823d24809d64bd964a7644218e7dafdb5259683c61df6bd4261755eb600bca4"
+  },
+  {
+   "path": "training_code/loader_examples/biz_112/build_log.json",
+   "bytes": 55807,
+   "sha256": "d55f6317309a721c2832473507485712b69e5cd3ddde3c0109a073b62c1fbe63"
+  },
+  {
+   "path": "training_code/loader_examples/biz_112/report.txt",
+   "bytes": 2552,
+   "sha256": "3be34f2a8838f43cfc96e6cf128f3dfd29329bd78584e9bf6b78fc5289c8fae8"
+  },
+  {
+   "path": "training_code/loader_examples/biz_113/loader.py",
+   "bytes": 6732,
+   "sha256": "c58dca8c25856903d090dfdf30bbe49ae85ef78c472597f26705e5144532f378"
+  },
+  {
+   "path": "training_code/loader_examples/biz_113/messages.json",
+   "bytes": 56013,
+   "sha256": "32d6cded6423de8828d3008ff33f777b6ea749245bbcffa54d6029bf1131773c"
+  },
+  {
+   "path": "training_code/loader_examples/biz_113/build_log.json",
+   "bytes": 8027,
+   "sha256": "d7a80b57b24947a0d1e91a403c88812d3fb3e3be00efac2639ac71a7a8378e33"
+  },
+  {
+   "path": "training_code/loader_examples/biz_113/report.txt",
+   "bytes": 3464,
+   "sha256": "37c04726c8e639da2528e4102cb55dce08d87152f737b765a4e5a5488f067d6e"
+  },
+  {
+   "path": "training_code/loader_examples/biz_114/loader.py",
+   "bytes": 3983,
+   "sha256": "64a21c6eb8d748d2bb1df53fe352732bf1787977701392fbc0142dfe27861525"
+  },
+  {
+   "path": "training_code/loader_examples/biz_114/messages.json",
+   "bytes": 51406,
+   "sha256": "e3c5f54a9adfc4f0acc0c8deace49d3f3ed2385724a53cee79c602201b59cea7"
+  },
+  {
+   "path": "training_code/loader_examples/biz_114/build_log.json",
+   "bytes": 679,
+   "sha256": "79acda7b0b911d801f0b628040a9ab8fd9bd25cd3d5f922a477bd9c4ebb204ad"
+  },
+  {
+   "path": "training_code/loader_examples/biz_114/report.txt",
+   "bytes": 2253,
+   "sha256": "72c0819b5225fbfb92867a23681168d01c869d5b73708fc4b3abd6a3aa4f2eba"
+  },
+  {
+   "path": "training_code/loader_examples/biz_116/loader.py",
+   "bytes": 5546,
+   "sha256": "ead6c333854d035f8072b2ceec95d0428454f222a5d44c88de7f6eb33ac88183"
+  },
+  {
+   "path": "training_code/loader_examples/biz_116/messages.json",
+   "bytes": 77942,
+   "sha256": "42e50cb90ded7ba242a280a634f32843732f90b71a2ea7851208d5a36b8c7e0d"
+  },
+  {
+   "path": "training_code/loader_examples/biz_116/build_log.json",
+   "bytes": 1445,
+   "sha256": "2b439413a8502ba1acfad5e753f073c5b20c70102ac1c9c83c58076f439ffb78"
+  },
+  {
+   "path": "training_code/loader_examples/biz_116/report.txt",
+   "bytes": 2293,
+   "sha256": "6c5db7f456ac981fa041a898d20dce645cbc1395891f38fd0f1e0096e875ebbb"
+  },
+  {
+   "path": "training_code/loader_examples/biz_118/loader.py",
+   "bytes": 11651,
+   "sha256": "5d0f5266da55c7383da4676dccdafce86f29a8e1d8919084fabcee6ea614d66d"
+  },
+  {
+   "path": "training_code/loader_examples/biz_118/messages.json",
+   "bytes": 101877,
+   "sha256": "a4bbdccbb014aea388d537c1fd964c2bf6f7e50087a3ce91bbaeb8090d29f094"
+  },
+  {
+   "path": "training_code/loader_examples/biz_118/build_log.json",
+   "bytes": 33337,
+   "sha256": "df4d96573aafab7d86c9914bc92258270859008438ae96092aed7270674d93f6"
+  },
+  {
+   "path": "training_code/loader_examples/biz_118/report.txt",
+   "bytes": 3494,
+   "sha256": "05ccbf37a9dd849a8eba58289b919c07d839d80328864a58b162098d1b40f86d"
+  },
+  {
+   "path": "training_code/loader_examples/biz_121/loader.py",
+   "bytes": 5650,
+   "sha256": "3c542ffed9d119d2d0363d3660a4ce18ec32bbff1aabbd3d4a2b431802ca660e"
+  },
+  {
+   "path": "training_code/loader_examples/biz_121/messages.json",
+   "bytes": 97562,
+   "sha256": "813c27b79cd8936d7a2432d1a33a933b35fc80d84f23cf31fff742b1a2a51f28"
+  },
+  {
+   "path": "training_code/loader_examples/biz_121/build_log.json",
+   "bytes": 4430,
+   "sha256": "4905b5bb5d92180f21589f0afdb26024ead2c0b4f1f3e243e3042d7830f1e851"
+  },
+  {
+   "path": "training_code/loader_examples/biz_121/report.txt",
+   "bytes": 3340,
+   "sha256": "cd577c3c241ebd72bd6d1db81ed91dc8cc45d8a0f2f8c384558d30e337b40631"
+  },
+  {
+   "path": "training_code/loader_examples/biz_123/loader.py",
+   "bytes": 8983,
+   "sha256": "385326833a5cbe1c2a993050e5ece935953ff2423e6f8b4f16cd2366e5e609ee"
+  },
+  {
+   "path": "training_code/loader_examples/biz_123/messages.json",
+   "bytes": 117760,
+   "sha256": "a5b4190d41d2fbb8f6225fbbeea531ea59a8e87c8c9380f35cb5ccc5d54b9e87"
+  },
+  {
+   "path": "training_code/loader_examples/biz_123/build_log.json",
+   "bytes": 5410,
+   "sha256": "2860229a8b8b44ab9a1943b926c6c6d34e760fd7412fb51d7af688712feeecad"
+  },
+  {
+   "path": "training_code/loader_examples/biz_123/report.txt",
+   "bytes": 4089,
+   "sha256": "7ad0938ee911e2e9f6490403d2c8d3fbf93120710a8409f2cc9c4183671b85db"
+  },
+  {
+   "path": "training_code/loader_examples/biz_124/loader.py",
+   "bytes": 7913,
+   "sha256": "a734eb180e51de675ebfc7cfa9f6e76118221e129dfb6cb0e4ad9c536445f6aa"
+  },
+  {
+   "path": "training_code/loader_examples/biz_124/messages.json",
+   "bytes": 68384,
+   "sha256": "12b88366141eefdda0c99982c2deb5d7b2dc45887c9f449c104a6179587361b2"
+  },
+  {
+   "path": "training_code/loader_examples/biz_124/build_log.json",
+   "bytes": 240,
+   "sha256": "83fa5c70757f568af73fc51a5186019216c29ef83431eadb8f8b00689eaa6897"
+  },
+  {
+   "path": "training_code/loader_examples/biz_124/report.txt",
+   "bytes": 3849,
+   "sha256": "fc79adefe30e64a26e56a89db0d3c85df400c8561bee7bdaf95db659a037b76b"
+  },
+  {
+   "path": "training_code/loader_examples/biz_125/loader.py",
+   "bytes": 3591,
+   "sha256": "1e0a5943cb1dae1eb1b9a4292c248c3c15e1ad97702339c8c7834e4dfc398483"
+  },
+  {
+   "path": "training_code/loader_examples/biz_125/messages.json",
+   "bytes": 50328,
+   "sha256": "b6ce8a2f2702f907e0f4fb6b18a6973e03c747cef6a077f9c56027eea1a9a438"
+  },
+  {
+   "path": "training_code/loader_examples/biz_125/build_log.json",
+   "bytes": 711,
+   "sha256": "362ee008da534dc30c512f5cbb67211127b658c6bf00694b2f52912df95740c4"
+  },
+  {
+   "path": "training_code/loader_examples/biz_125/report.txt",
+   "bytes": 2178,
+   "sha256": "85822dc6319f35b26ddf18393a6692128aacc867b8833fc1c22efdf1882ad728"
+  },
+  {
+   "path": "training_code/loader_examples/biz_126/loader.py",
+   "bytes": 3156,
+   "sha256": "9158db83761a2a8cf40aec74acf936ffcb05ddd6d1321f09a3795cb134ecb7e3"
+  },
+  {
+   "path": "training_code/loader_examples/biz_126/messages.json",
+   "bytes": 43787,
+   "sha256": "6026f2a9ac4f9882392cedb8cfcfb5c3e78f9d2af65ea61a96100218f4cede60"
+  },
+  {
+   "path": "training_code/loader_examples/biz_126/build_log.json",
+   "bytes": 238,
+   "sha256": "bdcfa5528c66a57e7e47b5d83adecb797e17d8999838ff44a44e040e2a454dbb"
+  },
+  {
+   "path": "training_code/loader_examples/biz_126/report.txt",
+   "bytes": 1961,
+   "sha256": "ecba1e464bb8cddec6045ad9be2eae93b5f43860c493f2af91c163eb7638ca46"
+  },
+  {
+   "path": "training_code/loader_examples/biz_127/loader.py",
+   "bytes": 9431,
+   "sha256": "9c36a3c9bd8e0e1d26f804bc0eb5c2605289b916e3c02712e2e944d74cc4545b"
+  },
+  {
+   "path": "training_code/loader_examples/biz_127/messages.json",
+   "bytes": 71893,
+   "sha256": "b6e484ec7152bafae024e91e88d04ae3bacbed36a1bed629f5d67bfaac2f86c7"
+  },
+  {
+   "path": "training_code/loader_examples/biz_127/build_log.json",
+   "bytes": 11908,
+   "sha256": "695260288c323b5accc465da63226f04519277b77d8a2cc0d4cab9336148cfae"
+  },
+  {
+   "path": "training_code/loader_examples/biz_127/report.txt",
+   "bytes": 4075,
+   "sha256": "9de68e870fc7470762cbcc4d9f72657de241e1d90fa7c31422705a8028b2d98f"
+  },
+  {
+   "path": "training_code/loader_examples/biz_128/loader.py",
+   "bytes": 7432,
+   "sha256": "320a001913cd953bcaec5ca42b7074e6161e324c37ee01154247a30282306d49"
+  },
+  {
+   "path": "training_code/loader_examples/biz_128/messages.json",
+   "bytes": 92177,
+   "sha256": "43b35ae5d1dc5795272ebf1842d23debf92745e2dc8c9be440d8059e2d253f5f"
+  },
+  {
+   "path": "training_code/loader_examples/biz_128/build_log.json",
+   "bytes": 2419,
+   "sha256": "182ae42c5fc32d4bfb97a2145823db02ad79e1d46af0bacf4872d20f4201163a"
+  },
+  {
+   "path": "training_code/loader_examples/biz_128/report.txt",
+   "bytes": 2730,
+   "sha256": "915ce358ea21a104c08fbcc599c2b71e62e97f40bcbf02247b1297ccc19560e1"
+  },
+  {
+   "path": "training_code/loader_examples/biz_129/loader.py",
+   "bytes": 6331,
+   "sha256": "6634bb5366d1165b65d9a15d259535648a41503f85c2c70d00f207a8e754a589"
+  },
+  {
+   "path": "training_code/loader_examples/biz_129/messages.json",
+   "bytes": 78005,
+   "sha256": "c88f364ddf5f3c49bdd796b30d74ac4c5b938f2596d34caaa60183cebdc1eb5b"
+  },
+  {
+   "path": "training_code/loader_examples/biz_129/build_log.json",
+   "bytes": 874,
+   "sha256": "8e707079a45f796ada19c34baa06ed4e561ba16d3dbdd8a192d0fe1fffd83a53"
+  },
+  {
+   "path": "training_code/loader_examples/biz_129/report.txt",
+   "bytes": 3377,
+   "sha256": "ec8914ed882248be5ebf38eca7687514fed9f75c59b7179952ab1902738d06ec"
+  }
+ ]
+}

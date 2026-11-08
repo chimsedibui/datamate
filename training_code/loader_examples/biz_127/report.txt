@@ -1,0 +1,34 @@
+[orders] 33874 rows; columns: ['order_id', 'order_datetime', 'order_date', 'status_raw', 'status', 'customer_id', 'channel', 'payment_method_raw', 'payment_method', 'total_payable', 'paid_amount', 'debt_remaining', 'note', 'employee', 'branch', 'customer_name', 'customer_group', 'goods_total', 'order_discount', 'shipping_fee', 'vat']
+  orders.customer_id: 39.6% null
+  orders.customer_name: 39.6% null
+  orders.customer_group: 39.6% null
+  orders.employee: 100.0% null
+  orders.branch: 100.0% null
+  orders.note: 100.0% null
+[order_lines] 128293 rows; columns: ['order_id', 'line_no', 'product_id', 'product_name', 'unit', 'qty', 'qty_base', 'unit_price', 'line_amount', 'line_discount', 'cost_per_unit', 'is_fee']
+  order_lines.cost_per_unit: 100.0% null
+[products] 61 rows; columns: ['product_id', 'name', 'category', 'base_unit', 'sell_price', 'cost_price', 'brand', 'aliases', 'is_prescription', 'active_ingredient', 'size', 'is_prepared', 'active']
+  products.aliases: 100.0% null
+  products.brand: 100.0% null
+  products.cost_price: 100.0% null
+  products.active_ingredient: 100.0% null
+  products.size: 100.0% null
+[customers] 200 rows; columns: ['customer_id', 'name', 'group', 'phone', 'registered_date']
+  customers.registered_date: 100.0% null
+[payments] 33473 rows; columns: ['payment_id', 'order_id', 'paid_datetime', 'amount', 'method', 'kind']
+[unit_conversions] 69 rows; columns: ['product_id', 'unit', 'factor']
+  order_date range 2025-03-01 .. 2026-07-28
+  orders per month: 2025-03:2098, 2025-04:1891, 2025-05:2049, 2025-06:1967, 2025-07:1939, 2025-08:2129, 2025-09:1956, 2025-10:2047, 2025-11:2085, 2025-12:2039, 2026-01:2111, 2026-02:1270, 2026-03:2110, 2026-04:2077, 2026-05:2163, 2026-06:2064, 2026-07:1879
+  order hours present: [0]
+  status: {'completed': 33132, 'cancelled': 663, 'returned': 71, 'delivering': 8}
+  payment_method: {'cash': 15120, 'transfer': 13516, 'ewallet': 3366, 'cod': 1672, 'debt': 200}
+  customer_id: 200 distinct, 39.6% walk-in/null; top: {'KH0125': 129, 'KH0115': 128, 'KH0154': 127}
+  customer_name: 200 distinct, 39.6% walk-in/null; top: {'Từ Anh Mai': 129, 'Huỳnh Huy Hằng': 128, 'Nguyễn Khoa Nhung': 127}
+  qty: min 1.0, median 1.0, max 10.0, negatives 0
+  qty_base: min 1.0, median 1.0, max 24.0, negatives 0
+  line_amount: min 1000.0, median 89000.0, max 3035000.0, negatives 0
+  qty*unit_price-line_discount == line_amount for 98.9% of lines
+  qty_base/qty factors seen: [1.0, 20.0, 24.0]
+  sum(line_amount) == orders.goods_total for 91.8% of orders
+  completed revenue per month: 2025-03:1,075,114,000, 2025-04:985,537,000, 2025-05:1,027,854,000, 2025-06:1,004,447,500, 2025-07:980,895,000, 2025-08:1,087,322,500, 2025-09:1,040,423,000, 2025-10:1,055,674,500, 2025-11:1,063,460,500, 2025-12:1,045,637,500, 2026-01:1,102,424,000, 2026-02:641,972,000, 2026-03:1,098,707,000, 2026-04:1,052,284,500, 2026-05:1,134,206,500, 2026-06:1,080,551,000, 2026-07:966,304,000
+meta: {'industry': 'nhà hàng', 'has_customer_codes': True, 'line_no_from_file': True, 'data_end': '2026-07-28', 'notes': ['Tổng đơn = total_payable (số khách phải trả cả đơn). goods_total = sum line_amount. order_discount = goods_total - total_payable (nếu >0).', 'Khách trả = paid_amount trên đơn. Còn nợ = debt_remaining.', 'Trả bằng trên đơn: cash, transfer, ewallet, cod, debt. Thanh toán sau (thanh_toan.csv) ghi từng lần trả, method tương tự.', 'Phí phục vụ (phí phòng lạnh) là dòng hàng category="phí dịch vụ", is_fee=True, vẫn tính doanh thu.', 'Số lượng lẻ trong chi_tiet_don đã là qty_base (quy về đơn vị cơ bản).', 'Quy đổi đơn vị theo README: các loại bia/nước 1 thùng=24 lon/chai, Bia Sài Gòn Lager chai 1 két=20 chai.', 'Khách lẻ: Customer ID trống -> customer_id=null, customer_name=null.', 'Loại bán: store=tại quầy, zalo_oa=zalo, phone=điện thoại.', 'Tình trạng: completed, cancelled, returned, shipping(=delivering).', 'Dữ liệu đến 28/07/2026.'], 'extra_desc': {}, 'dropped_duplicate_lines': 2899}

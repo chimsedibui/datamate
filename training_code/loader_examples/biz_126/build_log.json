@@ -1,0 +1,18 @@
+[
+ {
+  "attempt": 1,
+  "llm_s": 8.09,
+  "cached": false,
+  "reasoning": null,
+  "result": "valid",
+  "errors": [],
+  "run_s": 9.7
+ },
+ {
+  "attempt": 2,
+  "llm_s": 2.14,
+  "cached": false,
+  "reasoning": null,
+  "result": "review_ok"
+ }
+]

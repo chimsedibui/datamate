@@ -25,7 +25,11 @@ Fixed settings, in `predict.sh`:
 1. **Semantic layer (per business, once).**
    - A short first LLM call summarises the README and file profile (industry, entities, units and conversions,
      quirks); the summary is added to the loader prompt and the units to the question-answering context.
-   - The LLM reads the business README, a profile of every file and sheet, and the rulebook.
+   - The LLM reads the business README, a profile of every file and sheet, and the rulebook, plus the 2 most similar
+     validated loaders from the training businesses as few-shot examples (`src/datamate/loader_examples.py`).
+   - Per business: at most 25 min, 12k thinking tokens per attempt; only the latest attempt and its feedback are
+     resent. If no attempt validates, a layer whose core tables are structurally sound and whose remaining issues are
+     data-quality warnings is accepted (`meta['soft_errors']`) rather than falling back to raw sheets.
    - It writes a `load(raw)` function that maps the raw files into a canonical schema:
      `orders`, `order_lines`, `products`, `unit_conversions`, `customers`, `payments`, `purchases`, `stock`,
      `returns`, `deliveries`, … plus `extra_*` tables for anything else.
@@ -77,7 +81,8 @@ and were downloaded with `scripts/download_model.sh`; checksums are in `models/Q
 
 ## Data
 
-- No training and no data generation were performed. See `training_code/README.md`.
+- No training was performed. Validated loaders built for the training businesses during development ship as
+  few-shot examples (not training data); generator, prompts/responses and checksums are in `training_code/`.
 - The provided training split (30 businesses, 3000 questions) was used only to develop prompts, validation rules
   and helpers, and to measure accuracy with `src/evaluate.py`.
 - Public/private test answers were never used.

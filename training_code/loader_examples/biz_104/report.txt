@@ -1,0 +1,17 @@
+[orders] 39006 rows; columns: ['order_id', 'order_datetime', 'order_date', 'status', 'status_raw', 'customer_name']
+  orders.customer_name: 39.6% null
+[order_lines] 62451 rows; columns: ['order_id', 'line_no', 'product_id', 'product_name', 'unit', 'qty', 'qty_base', 'unit_price', 'line_amount', 'is_fee']
+[products] 59 rows; columns: ['product_id', 'name', 'base_unit']
+[unit_conversions] 2 rows; columns: ['product_id', 'unit', 'factor']
+  order_date range 2025-04-01 .. 2026-06-02
+  orders per month: 2025-04:2853, 2025-05:2932, 2025-06:2819, 2025-07:2940, 2025-08:2967, 2025-09:2763, 2025-10:2862, 2025-11:2854, 2025-12:2856, 2026-01:2809, 2026-02:1958, 2026-03:2715, 2026-04:2707, 2026-05:2801, 2026-06:170
+  order hours present: [0]
+  status: {'completed': 37993, 'cancelled': 814, 'returned': 181, 'delivering': 18}
+  customer_name: 329 distinct, 39.6% walk-in/null; top: {'Lý Loan Nhung': 157, 'Phan Thanh Ngân': 153, 'Kiều Khoa Thu': 153}
+  qty: min 1.0, median 1.0, max 3.0, negatives 0
+  qty_base: min 1.0, median 1.0, max 6.0, negatives 0
+  line_amount: min 7000.0, median 41000.0, max 270000.0, negatives 0
+  qty*unit_price-line_discount == line_amount for 98.0% of lines
+  qty_base/qty factors seen: [1.0, 6.0]
+  completed revenue per month: 2025-04:197,293,000, 2025-05:203,645,500, 2025-06:194,246,000, 2025-07:210,130,500, 2025-08:205,193,000, 2025-09:193,201,000, 2025-10:195,454,000, 2025-11:198,458,500, 2025-12:197,772,000, 2026-01:198,041,000, 2026-02:135,511,000, 2026-03:193,051,500, 2026-04:185,781,000, 2026-05:192,380,000, 2026-06:9,810,500
+meta: {'industry': 'cà phê', 'has_customer_codes': False, 'line_no_from_file': False, 'data_end': '2026-06-02', 'notes': ["Không có mã khách; 'Khách lẻ' / khách vãng lai để null.", 'Số lượng quy đổi theo DanhSachQuyDoi.xlsx; qty_base = qty × tỉ lệ quy đổi khi dòng dùng đơn vị lớn.', "Trạng thái 'Đang giao dịch' được map sang delivering.", 'Dữ liệu có đến hết 2026-06-02.'], 'extra_desc': {}, 'dropped_duplicate_lines': 0}

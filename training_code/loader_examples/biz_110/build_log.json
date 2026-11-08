@@ -1,0 +1,34 @@
+[
+ {
+  "attempt": 1,
+  "llm_s": 20.83,
+  "cached": false,
+  "reasoning": null,
+  "result": "errors",
+  "errors": [
+   "orders.order_id: 1.5% null (required)",
+   "orders.order_datetime: 1.5% null (required)",
+   "orders.order_date: 1.5% null (required)",
+   "orders.status: 1.5% null (required)",
+   "orders.order_id not unique (428 duplicates) — one row per order",
+   "orders.status has values outside ('completed', 'cancelled', 'returned', 'delivering'): [nan]"
+  ],
+  "run_s": 21.3
+ },
+ {
+  "attempt": 2,
+  "llm_s": 41.23,
+  "cached": false,
+  "reasoning": null,
+  "result": "valid",
+  "errors": [],
+  "run_s": 41.8
+ },
+ {
+  "attempt": 3,
+  "llm_s": 2.32,
+  "cached": false,
+  "reasoning": null,
+  "result": "review_ok"
+ }
+]

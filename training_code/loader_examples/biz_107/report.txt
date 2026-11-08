@@ -1,0 +1,41 @@
+[orders] 43079 rows; columns: ['order_id', 'order_date', 'status', 'status_raw', 'order_datetime', 'customer_id', 'customer_name', 'customer_group', 'employee', 'branch', 'channel', 'payment_method', 'payment_method_raw', 'goods_total', 'order_discount', 'shipping_fee', 'vat', 'total_payable', 'paid_amount', 'debt_remaining', 'note']
+  orders.customer_id: 100.0% null
+  orders.customer_name: 100.0% null
+  orders.customer_group: 100.0% null
+  orders.employee: 100.0% null
+  orders.branch: 100.0% null
+  orders.channel: 100.0% null
+  orders.payment_method: 100.0% null
+  orders.payment_method_raw: 100.0% null
+  orders.order_discount: 100.0% null
+  orders.shipping_fee: 100.0% null
+  orders.vat: 100.0% null
+  orders.note: 100.0% null
+[order_lines] 43079 rows; columns: ['order_id', 'product_name', 'unit', 'qty', 'qty_base', 'unit_price', 'line_amount', 'line_no', 'product_id', 'line_discount', 'cost_per_unit', 'is_fee']
+  order_lines.line_discount: 100.0% null
+  order_lines.cost_per_unit: 100.0% null
+[products] 143 rows; columns: ['name', 'base_unit', 'product_id', 'aliases', 'category', 'brand', 'sell_price', 'cost_price', 'is_prescription', 'active_ingredient', 'size', 'is_prepared', 'active']
+  products.aliases: 100.0% null
+  products.category: 100.0% null
+  products.brand: 100.0% null
+  products.sell_price: 100.0% null
+  products.cost_price: 100.0% null
+  products.is_prescription: 100.0% null
+  products.active_ingredient: 100.0% null
+  products.size: 100.0% null
+[unit_conversions] 77 rows; columns: ['product_id', 'unit', 'factor']
+  order_date range 2025-03-01 .. 2026-07-22
+  orders per month: 2025-03:2219, 2025-04:2130, 2025-05:2399, 2025-06:2448, 2025-07:2537, 2025-08:2562, 2025-09:2337, 2025-10:2433, 2025-11:2557, 2025-12:2606, 2026-01:2582, 2026-02:4182, 2026-03:2422, 2026-04:2546, 2026-05:2724, 2026-06:2609, 2026-07:1786
+  order hours present: [0]
+  status: {'completed': 41248, 'cancelled': 1163, 'returned': 660, 'delivering': 8}
+  payment_method: {None: 43079}
+  customer_id: 0 distinct, 100.0% walk-in/null; top: {}
+  customer_name: 0 distinct, 100.0% walk-in/null; top: {}
+  qty: min 1.0, median 1.0, max 10.0, negatives 0
+  qty_base: min 1.0, median 1.0, max 100.0, negatives 0
+  line_amount: min 4000.0, median 25000.0, max 2160000.0, negatives 0
+  qty*unit_price-line_discount == line_amount for 99.2% of lines
+  qty_base/qty factors seen: [1.0, 4.0, 5.0, 6.0, 8.0, 10.0, 12.0, 20.0, 24.0, 25.0, 30.0, 32.0, 36.0, 40.0, 48.0]
+  sum(line_amount) == orders.goods_total for 100.0% of orders
+  completed revenue per month: 2025-03:133,482,500, 2025-04:119,159,000, 2025-05:140,600,500, 2025-06:135,090,600, 2025-07:150,871,500, 2025-08:137,949,300, 2025-09:128,554,600, 2025-10:130,333,400, 2025-11:137,046,000, 2025-12:139,504,200, 2026-01:153,414,200, 2026-02:246,051,500, 2026-03:126,766,400, 2026-04:133,313,800, 2026-05:144,846,100, 2026-06:146,388,700, 2026-07:96,677,500
+meta: {'industry': 'tạp hoá', 'has_customer_codes': False, 'line_no_from_file': False, 'data_end': '2026-07-22', 'notes': ['No order IDs or customer names in data', 'Unit conversions provided in README'], 'extra_desc': {}, 'dropped_duplicate_lines': 0}

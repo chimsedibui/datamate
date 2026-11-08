@@ -250,6 +250,7 @@ def with_customer(t: dict, df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+_CREDIT_METHODS = ("debt", "installment")  # trả góp is a credit order (public rulebook, phone shops)
 _MARKETPLACE = re.compile(r"\bsan\b|tmdt|shopee|lazada|tiki|tiktok|sendo")
 
 
@@ -321,7 +322,8 @@ def debt_flow(t: dict, start, end, as_of=None) -> pd.DataFrame:
     """Per credit ("ghi nợ") order, debt added and repaid within [start, end] (rulebook §4 "nợ thêm / trả nợ"):
     added  = unpaid part of orders dated in the period after same-day payments;
     repaid = payments made AFTER the order day, dated in the period, of any credit order.
-    Credit orders: payment_method == 'debt' when recorded, else orders not fully paid on their order day.
+    Credit orders: payment_method 'debt' or 'installment' (trả góp) when recorded, else orders not fully paid on their
+    order day. Installment payments count as repayments; refunds never do.
     Columns: order_id, order_date, customer_id/customer_name, added, repaid, cust_key, cust_name."""
     s, e = _bound(start), _bound(end)
     if as_of is not None:
@@ -333,8 +335,9 @@ def debt_flow(t: dict, start, end, as_of=None) -> pd.DataFrame:
     p = p.merge(o[["order_id", "order_date"]], on="order_id")
     same_day = p[p["paid_date"] <= p["order_date"]].groupby("order_id")["amount"].sum()
     o["added"] = (o["payable"] - o["order_id"].map(same_day).fillna(0)).clip(lower=0).round(0)
-    if "payment_method" in o and (o["payment_method"] == "debt").any():
-        o = o[o["payment_method"] == "debt"]
+    credit = o["payment_method"].isin(_CREDIT_METHODS) if "payment_method" in o else None
+    if credit is not None and credit.any():
+        o = o[credit]
     else:
         o = o[o["added"] > 0.5]
     later = p[(p["paid_date"] > p["order_date"]) & p["order_id"].isin(o["order_id"])]

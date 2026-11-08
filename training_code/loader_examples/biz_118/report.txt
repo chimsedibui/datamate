@@ -1,0 +1,34 @@
+[orders] 20869 rows; columns: ['order_id', 'order_datetime', 'order_date', 'status', 'status_raw', 'customer_id', 'customer_name', 'customer_group', 'employee', 'branch', 'channel', 'payment_method', 'payment_method_raw', 'goods_total', 'order_discount', 'shipping_fee', 'vat', 'total_payable', 'paid_amount', 'debt_remaining', 'note']
+  orders.customer_id: 20.0% null
+  orders.customer_name: 20.0% null
+  orders.customer_group: 100.0% null
+  orders.employee: 100.0% null
+  orders.branch: 100.0% null
+  orders.channel: 100.0% null
+  orders.payment_method: 100.0% null
+  orders.payment_method_raw: 100.0% null
+  orders.note: 100.0% null
+[order_lines] 46001 rows; columns: ['order_id', 'line_no', 'product_id', 'product_name', 'unit', 'qty', 'qty_base', 'unit_price', 'line_discount', 'line_amount', 'cost_per_unit', 'is_fee']
+[products] 55 rows; columns: ['product_id', 'name', 'aliases', 'category', 'brand', 'base_unit', 'sell_price', 'cost_price', 'is_prescription', 'active_ingredient', 'size', 'is_prepared', 'active']
+  products.aliases: 100.0% null
+  products.brand: 100.0% null
+  products.active_ingredient: 100.0% null
+  products.size: 100.0% null
+[unit_conversions] 11 rows; columns: ['product_id', 'unit', 'factor']
+[deliveries] 41198 rows; columns: ['delivery_id', 'order_id', 'delivery_date', 'status', 'note']
+  deliveries.note: 100.0% null
+  order_date range 2025-02-01 .. 2026-09-10
+  orders per month: 2025-02:934, 2025-03:1195, 2025-04:1135, 2025-05:1192, 2025-06:1130, 2025-07:1142, 2025-08:1135, 2025-09:1156, 2025-10:1110, 2025-11:1090, 2025-12:1140, 2026-01:1125, 2026-02:695, 2026-03:1105, 2026-04:1060, 2026-05:1084, 2026-06:996, 2026-07:1042, 2026-08:1059, 2026-09:344
+  order hours present: [0]
+  status: {'completed': 20296, 'cancelled': 443, 'returned': 130}
+  payment_method: {None: 20869}
+  customer_id: 252 distinct, 20.0% walk-in/null; top: {'kl': 2101, 'khách lẻ': 2038, 'Hoàng Mai Anh': 80}
+  customer_name: 252 distinct, 20.0% walk-in/null; top: {'kl': 2101, 'khách lẻ': 2038, 'Hoàng Mai Anh': 80}
+  qty: min 1.0, median 1.0, max 20.0, negatives 0
+  qty_base: min 1.0, median 1.0, max 1000.0, negatives 0
+  line_amount: min 1300.0, median 210000.0, max 43000000.0, negatives 0
+  qty*unit_price-line_discount == line_amount for 98.8% of lines
+  qty_base/qty factors seen: [1.0, 4.0, 10.0, 20.0, 200.0, 1000.0]
+  sum(line_amount) == orders.goods_total for 100.0% of orders
+  completed revenue per month: 2025-02:1,320,253,500, 2025-03:1,471,954,800, 2025-04:1,488,698,100, 2025-05:1,535,787,700, 2025-06:1,523,470,700, 2025-07:1,454,703,600, 2025-08:1,442,924,600, 2025-09:1,627,106,800, 2025-10:1,399,633,000, 2025-11:1,500,287,200, 2025-12:1,422,778,100, 2026-01:1,602,874,900, 2026-02:960,929,700, 2026-03:1,466,649,100, 2026-04:1,445,327,500, 2026-05:1,405,533,500, 2026-06:1,339,837,500, 2026-07:1,409,152,100, 2026-08:1,432,107,300, 2026-09:499,289,100
+meta: {'industry': 'vật liệu xây dựng', 'has_customer_codes': False, 'line_no_from_file': False, 'data_end': '2026-09-10', 'notes': ['Số lượng quy đổi đã được tính theo đơn vị cơ bản', 'Debt_remaining is 0 as no data provided', 'Unit conversions based on README rules', 'Product ID mapping from product name to Mã hàng hóa', 'Status mapped from status_raw with expanded dictionary and default to "completed"', 'Money parsing fixed for "tr" (triệu) and commas', 'Quantity parsing fixed for strings like "1 cái"'], 'extra_desc': {}, 'dropped_duplicate_lines': 0}

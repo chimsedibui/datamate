@@ -1,0 +1,27 @@
+[orders] 70778 rows; columns: ['order_id', 'order_datetime', 'order_date', 'status', 'status_raw', 'customer_id', 'customer_name', 'customer_group', 'employee', 'branch', 'channel', 'payment_method', 'payment_method_raw', 'goods_total', 'order_discount', 'shipping_fee', 'vat', 'total_payable', 'paid_amount', 'debt_remaining', 'note']
+  orders.customer_id: 100.0% null
+  orders.customer_name: 100.0% null
+  orders.customer_group: 100.0% null
+  orders.employee: 100.0% null
+  orders.branch: 100.0% null
+  orders.channel: 100.0% null
+  orders.payment_method: 100.0% null
+  orders.payment_method_raw: 100.0% null
+  orders.note: 100.0% null
+[order_lines] 113325 rows; columns: ['order_id', 'line_no', 'product_id', 'product_name', 'unit', 'qty', 'qty_base', 'unit_price', 'line_discount', 'line_amount', 'cost_per_unit', 'is_fee']
+[products] 50 rows; columns: ['product_id', 'name', 'category', 'base_unit', 'sell_price', 'cost_price']
+  order_date range 2025-04-01 .. 2026-07-31
+  orders per month: 2025-04:4068, 2025-05:4303, 2025-06:4314, 2025-07:4328, 2025-08:4653, 2025-09:4323, 2025-10:4444, 2025-11:4526, 2025-12:4536, 2026-01:4616, 2026-02:3295, 2026-03:4706, 2026-04:4551, 2026-05:4878, 2026-06:4431, 2026-07:4806
+  order hours present: [0]
+  status: {'completed': 68983, 'cancelled': 1420, 'returned': 341, 'delivering': 34}
+  payment_method: {None: 70778}
+  customer_id: 0 distinct, 100.0% walk-in/null; top: {}
+  customer_name: 0 distinct, 100.0% walk-in/null; top: {}
+  qty: min 1.0, median 1.0, max 3.0, negatives 0
+  qty_base: min 1.0, median 1.0, max 6.0, negatives 0
+  line_amount: min 7000.0, median 41000.0, max 270000.0, negatives 0
+  qty*unit_price-line_discount == line_amount for 100.0% of lines
+  qty_base/qty factors seen: [1.0, 6.0]
+  sum(line_amount) == orders.goods_total for 100.0% of orders
+  completed revenue per month: 2025-04:281,036,000, 2025-05:296,492,000, 2025-06:298,394,000, 2025-07:302,714,000, 2025-08:316,577,000, 2025-09:298,780,500, 2025-10:306,937,000, 2025-11:311,009,000, 2025-12:314,808,500, 2026-01:329,254,000, 2026-02:228,397,000, 2026-03:331,125,000, 2026-04:323,108,000, 2026-05:338,062,000, 2026-06:310,926,500, 2026-07:334,591,000
+meta: {'industry': 'cà phê', 'has_customer_codes': False, 'line_no_from_file': False, 'data_end': '2026-07-31', 'notes': ['Quy đổi đơn vị: 1 hộp = 6 cái for certain products', 'Số lượng quy đổi is already provided in the sales data', 'Product names are normalized for matching with product catalog'], 'extra_desc': {}, 'dropped_duplicate_lines': 0}

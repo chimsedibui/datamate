@@ -1,0 +1,25 @@
+[orders] 26505 rows; columns: ['order_id', 'order_datetime', 'order_date', 'status', 'status_raw', 'customer_id', 'customer_name', 'goods_total', 'order_discount', 'total_payable', 'paid_amount', 'debt_remaining']
+  orders.customer_id: 40.0% null
+  orders.customer_name: 40.0% null
+[order_lines] 98507 rows; columns: ['order_id', 'product_id', 'product_name', 'qty', 'unit_price', 'line_discount', 'line_amount', 'qty_base', 'line_no', 'is_fee']
+[products] 56 rows; columns: ['product_id', 'name', 'category', 'sell_price', 'base_unit', 'active']
+[customers] 180 rows; columns: ['customer_id', 'name', 'group', 'phone']
+[stock] 55 rows; columns: ['product_id', 'product_name', 'qty_base', 'as_of_date']
+[purchases] 1454 rows; columns: ['receipt_id', 'receipt_date', 'supplier', 'product_id', 'product_name', 'unit', 'qty', 'unit_cost', 'amount', 'note']
+  purchases.note: 96.2% null
+[unit_conversions] 7 rows; columns: ['product_id', 'unit', 'factor']
+  order_date range 2025-04-01 .. 2026-09-07
+  orders per month: 2025-04:1537, 2025-05:1524, 2025-06:1389, 2025-07:1575, 2025-08:1555, 2025-09:1539, 2025-10:1596, 2025-11:1457, 2025-12:1573, 2026-01:1615, 2026-02:1001, 2026-03:1611, 2026-04:1602, 2026-05:1601, 2026-06:1592, 2026-07:1684, 2026-08:1690, 2026-09:364
+  order hours present: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+  status: {'completed': 14625, 'delivering': 11288, 'cancelled': 550, 'returned': 42}
+  customer_id: 180 distinct, 40.0% walk-in/null; top: {'KH0130': 117, 'KH0131': 115, 'KH0179': 111}
+  customer_name: 180 distinct, 40.0% walk-in/null; top: {'Triệu Cường Thanh': 117, 'Vương Minh Nhung': 115, 'Từ Duy Nhung': 111}
+  qty: min 1.0, median 1.0, max 10.0, negatives 0
+  qty_base: min 1.0, median 1.0, max 24.0, negatives 0
+  line_amount: min 1000.0, median 90000.0, max 2890000.0, negatives 0
+  qty*unit_price-line_discount == line_amount for 100.0% of lines
+  qty_base/qty factors seen: [1.0, 20.0, 24.0]
+  sum(line_amount) == orders.goods_total for 100.0% of orders
+  completed revenue per month: 2025-04:792,916,000, 2025-05:795,859,000, 2025-06:686,778,000, 2025-07:804,812,000, 2025-08:802,316,000, 2025-09:770,247,000, 2025-10:835,563,000, 2025-11:727,459,500, 2025-12:804,404,000, 2026-01:629,406,000
+  purchases date range 2025-04-01 .. 2026-09-07
+meta: {'industry': 'nhà hàng', 'has_customer_codes': True, 'line_no_from_file': True, 'data_end': '2026-09-07', 'notes': ['Units have specific conversion factors for some products', 'Debt is recorded as "Còn nợ" in orders', 'Service fee lines are marked as "Phí phục vụ"'], 'extra_desc': {}, 'status_autofixed': {'Huỷ đơn -> cancelled': 238, 'Đổi trả -> returned': 13}, 'dropped_duplicate_lines': 1143}

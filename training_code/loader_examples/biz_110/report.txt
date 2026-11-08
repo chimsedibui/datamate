@@ -1,0 +1,20 @@
+[orders] 28888 rows; columns: ['order_id', 'order_date', 'status', 'status_raw', 'customer_name', 'goods_total', 'total_payable', 'paid_amount', 'debt_remaining', 'order_datetime', 'branch', 'channel', 'payment_method', 'payment_method_raw', 'order_discount', 'shipping_fee', 'vat', 'note', 'customer_id', 'employee']
+  orders.customer_id: 100.0% null
+  orders.customer_name: 40.0% null
+  orders.employee: 100.0% null
+  orders.branch: 100.0% null
+  orders.channel: 100.0% null
+  orders.payment_method: 100.0% null
+  orders.payment_method_raw: 100.0% null
+  orders.order_discount: 100.0% null
+  orders.shipping_fee: 100.0% null
+  orders.vat: 100.0% null
+  orders.note: 100.0% null
+  order_date range 2025-05-01 .. 2026-07-03
+  orders per month: 2025-05:2193, 2025-06:2062, 2025-07:2248, 2025-08:2142, 2025-09:2201, 2025-10:2198, 2025-11:1997, 2025-12:2182, 2026-01:2050, 2026-02:1451, 2026-03:2022, 2026-04:1963, 2026-05:2014, 2026-06:1932, 2026-07:233
+  order hours present: [0]
+  status: {'completed': 28191, 'cancelled': 545, 'returned': 137, 'delivering': 15}
+  payment_method: {None: 28888}
+  customer_id: 0 distinct, 100.0% walk-in/null; top: {}
+  customer_name: 150 distinct, 40.0% walk-in/null; top: {'Nghiêm Bình Trang': 143, 'Lý Đạt Hương': 140, 'Doãn Hằng Anh': 137}
+meta: {'industry': 'tạp hoá', 'has_customer_codes': False, 'line_no_from_file': False, 'data_end': '2026-07-03', 'notes': ['debt recorded in "Chưa trả" column', 'no time information available'], 'extra_desc': {}}

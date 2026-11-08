@@ -22,7 +22,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from . import parsers
+from . import loader_examples, parsers
 from .llm import LLM
 from .profile import profile_business
 from .rawio import RawStore
@@ -275,18 +275,31 @@ class Mapper:
         (out / "profile.md").write_text(profile)
         dom = ("Domain summary (first read of README + profile; the README stays authoritative):\n"
                + json.dumps(domain, ensure_ascii=False) + "\n\n") if domain else ""
+        examples = (loader_examples.pick(store, industry=(domain or {}).get("industry"))
+                    if os.environ.get("BUILD_EXAMPLES", "1") != "0" else "")
         messages = [{"role": "system", "content": self.system_prompt()},
-                    {"role": "user", "content": f"Business id: {biz_id}\n\n{dom}{profile}\n\nWrite load(raw)."}]
+                    {"role": "user", "content": f"Business id: {biz_id}\n\n{dom}{profile}\n\n{examples}"
+                                                "Write load(raw) for THIS business."}]
         log = []
         best = None
         partial = None
+        lenient = None  # core tables structurally valid, only data-quality warnings left
         reviewed = False
+        t_start = time.time()
+        max_s = float(os.environ.get("BUILD_MAX_S", "1500"))
+        max_tokens = int(os.environ.get("BUILD_MAX_TOKENS", "12000"))
         for attempt in range(1, self.max_attempts + 1):
             t = time.time()
+            if attempt > 1 and t - t_start > max_s:
+                log.append({"attempt": attempt, "result": "time_cap", "elapsed_s": round(t - t_start)})
+                break
+            # Only the task, the latest attempt and its feedback are sent: older attempts add nothing a small
+            # model can use and would overflow its context window.
+            call = messages if len(messages) <= 4 else messages[:2] + messages[-2:]
             # Thinking needs a large output budget, but prompt + output must fit the served context window.
-            est_prompt = sum(len(m["content"]) for m in messages) // 3
-            budget = max(4000, min(24000, int(os.environ.get("LLM_CONTEXT", "40960")) - est_prompt - 512))
-            res = self.llm.chat(messages, max_tokens=budget, thinking=True)
+            est_prompt = sum(len(m["content"]) for m in call) // 3
+            budget = max(4000, min(max_tokens, int(os.environ.get("LLM_CONTEXT", "40960")) - est_prompt - 512))
+            res = self.llm.chat(call, max_tokens=budget, thinking=True)
             code = extract_code(res.content)
             entry = {"attempt": attempt, "llm_s": res.usage.get("latency_s"), "cached": res.cached,
                      "reasoning": res.reasoning}
@@ -322,6 +335,10 @@ class Mapper:
                 if cand is not None and (partial is None or len(cand[0]) > len(partial[1])):
                     partial = (code, *cand)
                     entry["partial_ok"] = sorted(cand[0])
+                soft = _accept_with_warnings(tables, meta, errs)
+                if soft is not None and (lenient is None or len(soft[1]["soft_errors"]) < len(lenient[2]["soft_errors"])):
+                    lenient = (code, *soft)
+                    entry["lenient_ok"] = sorted(soft[0])
             if not errs:
                 best = (code, tables, meta, report)
                 if not self.review or reviewed:
@@ -340,6 +357,8 @@ class Mapper:
         (out / "messages.json").write_text(json.dumps(messages, ensure_ascii=False, indent=1))
         if best is None and partial is not None:
             best = partial
+        if best is None and lenient is not None:
+            best = lenient
         if best is None:
             meta = {"biz_id": biz_id, "ok": False, "fingerprint": fp}
             (out / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1))
@@ -351,11 +370,55 @@ class Mapper:
         tdir.mkdir(exist_ok=True)
         for name, df in tables.items():
             df.to_parquet(tdir / f"{name}.parquet", index=False)
-        meta.update(biz_id=biz_id, ok=True, tables=sorted(tables), fingerprint=fp)
+        meta.update(biz_id=biz_id, ok=True, tables=sorted(tables), fingerprint=fp, build_model=self.llm.model,
+                    build_examples=bool(examples))
         if domain:
             meta["domain"] = domain
         (out / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1, default=str))
         return meta
+
+
+_SOFT = (
+    re.compile(r"monthly completed revenue varies"),
+    re.compile(r"matches orders\.goods_total for only"),
+    re.compile(r"orders\.status mapping looks wrong"),
+    re.compile(r"is >100x the 99th percentile"),
+)
+
+
+def _is_soft(err: str, tables: dict) -> bool:
+    """Data-quality warnings a usable layer may still have (vs structural errors that break every answer)."""
+    if any(rx.search(err) for rx in _SOFT):
+        return True
+    m = re.match(r"order_lines\.(qty|qty_base|line_amount): ([\d.]+)% null", err)
+    if m:
+        return float(m.group(2)) <= 5
+    m = re.match(r"order_lines: ([\d.]+)% of lines reference an order_id missing", err)
+    if m:
+        return float(m.group(1)) <= 2
+    m = re.match(r"order_lines\.line_amount: (\d+) lines are null", err)
+    if m and "order_lines" in tables:
+        return int(m.group(1)) <= max(20, 0.01 * len(tables["order_lines"]))
+    return False
+
+
+def _accept_with_warnings(tables: dict, meta: dict, errs: list[str]):
+    """Last resort when no attempt validated: keep the layer if every remaining error is a soft warning or belongs
+    to a non-core table (dropped). A slightly imperfect layer answers far better than the raw-sheet fallback, which
+    the answerability gate turns into abstain. Returns (tables, meta, report) or None."""
+    if not {"orders", "order_lines"} <= set(tables):
+        return None
+    hard = [e for e in errs if not _is_soft(e, tables)]
+    bad = {_error_table(e) for e in hard}
+    if None in bad or bad & (set(CORE_TABLES) | {"loader"}):
+        return None
+    kept = {k: v for k, v in tables.items() if k not in bad}
+    meta = dict(meta, dropped_tables=sorted(bad), soft_errors=[e for e in errs if _is_soft(e, tables)])
+    meta.pop("table_errors", None)
+    errs2, report = validate(kept, meta)
+    if any(not _is_soft(e, kept) for e in errs2):
+        return None
+    return kept, meta, report
 
 
 def _error_table(err: str) -> str | None:

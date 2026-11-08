@@ -1,0 +1,30 @@
+[orders] 66469 rows; columns: ['order_id', 'order_datetime', 'order_date', 'status', 'status_raw', 'customer_id', 'customer_name', 'customer_group', 'channel', 'payment_method', 'payment_method_raw', 'total_payable', 'paid_amount', 'debt_remaining', 'order_discount', 'shipping_fee', 'vat', 'note']
+  orders.customer_id: 40.2% null
+  orders.customer_name: 40.2% null
+  orders.customer_group: 40.2% null
+  orders.note: 100.0% null
+[order_lines] 106585 rows; columns: ['order_id', 'line_no', 'product_id', 'product_name', 'unit', 'qty', 'qty_base', 'unit_price', 'line_discount', 'line_amount', 'is_fee']
+[products] 50 rows; columns: ['product_id', 'name', 'aliases', 'category', 'brand', 'base_unit', 'sell_price', 'cost_price', 'is_prescription', 'active_ingredient', 'size', 'is_prepared', 'active']
+  products.aliases: 100.0% null
+  products.brand: 100.0% null
+  products.cost_price: 100.0% null
+  products.active_ingredient: 100.0% null
+  products.size: 100.0% null
+[customers] 200 rows; columns: ['customer_id', 'name', 'group', 'phone', 'registered_date']
+  customers.registered_date: 100.0% null
+[payments] 66195 rows; columns: ['payment_id', 'order_id', 'paid_datetime', 'amount', 'method', 'kind']
+[unit_conversions] 4 rows; columns: ['product_id', 'unit', 'factor']
+  order_date range 2025-01-01 .. 2026-08-19
+  orders per month: 2025-01:2844, 2025-02:2660, 2025-03:3276, 2025-04:3242, 2025-05:3465, 2025-06:3396, 2025-07:3395, 2025-08:3464, 2025-09:3354, 2025-10:3503, 2025-11:3499, 2025-12:3519, 2026-01:3603, 2026-02:2526, 2026-03:3574, 2026-04:3642, 2026-05:3754, 2026-06:3583, 2026-07:3879, 2026-08:2291
+  order hours present: [0]
+  status: {'completed': 64835, 'cancelled': 1328, 'returned': 275, 'delivering': 31}
+  payment_method: {'cash': 26678, 'transfer': 23155, 'ewallet': 13026, 'cod': 2856, 'debt': 754}
+  customer_id: 200 distinct, 40.2% walk-in/null; top: {'KH0140': 240, 'KH0141': 238, 'KH0123': 238}
+  customer_name: 200 distinct, 40.2% walk-in/null; top: {'Quách Phương Thảo - 0983 338 372': 240, 'Ông Nam Bích 0326074107': 238, 'Hoàng Hoàng Đạt': 238}
+  qty: min 1.0, median 1.0, max 3.0, negatives 0
+  qty_base: min 1.0, median 1.0, max 6.0, negatives 0
+  line_amount: min 7000.0, median 41000.0, max 270000.0, negatives 0
+  qty*unit_price-line_discount == line_amount for 100.0% of lines
+  qty_base/qty factors seen: [1.0, 6.0]
+  completed revenue per month: 2025-01:201,634,000, 2025-02:184,698,000, 2025-03:226,550,000, 2025-04:218,473,000, 2025-05:234,722,000, 2025-06:239,366,000, 2025-07:230,841,000, 2025-08:235,884,000, 2025-09:229,934,500, 2025-10:242,218,000, 2025-11:244,127,000, 2025-12:238,571,500, 2026-01:251,070,000, 2026-02:174,587,000, 2026-03:251,060,500, 2026-04:254,792,500, 2026-05:262,655,000, 2026-06:254,777,200, 2026-07:275,488,100, 2026-08:158,900,200
+meta: {'industry': 'cà phê', 'has_customer_codes': True, 'line_no_from_file': True, 'data_end': '2026-08-19', 'notes': ['Unit conversions for Bánh croissant and Bánh tiramisu provided in README', "Debt is recorded in the 'Còn lại' column in don_hang.csv"], 'extra_desc': {}, 'dropped_duplicate_lines': 0}

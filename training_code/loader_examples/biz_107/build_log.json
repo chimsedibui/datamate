@@ -1,0 +1,33 @@
+[
+ {
+  "attempt": 1,
+  "llm_s": 25.63,
+  "cached": false,
+  "reasoning": null,
+  "result": "errors",
+  "errors": [
+   "orders: unknown columns ['line_amount'] (use only schema columns, or return them in an extra table)",
+   "order_lines.order_id: 1.2% null (required)",
+   "order_lines.qty: 1.2% null (required)",
+   "order_lines.qty_base: 1.2% null (required)",
+   "order_lines: 1.2% of lines reference an order_id missing from orders"
+  ],
+  "run_s": 26.7
+ },
+ {
+  "attempt": 2,
+  "llm_s": 20.56,
+  "cached": false,
+  "reasoning": null,
+  "result": "valid",
+  "errors": [],
+  "run_s": 21.7
+ },
+ {
+  "attempt": 3,
+  "llm_s": 13.89,
+  "cached": false,
+  "reasoning": null,
+  "result": "review_ok"
+ }
+]

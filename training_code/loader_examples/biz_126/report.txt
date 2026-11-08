@@ -1,0 +1,16 @@
+[orders] 66429 rows; columns: ['order_id', 'order_datetime', 'order_date', 'status', 'status_raw', 'goods_total']
+[order_lines] 66429 rows; columns: ['order_id', 'product_name', 'unit', 'qty', 'qty_base', 'unit_price', 'line_amount', 'is_fee', 'line_no']
+[unit_conversions] 8 rows; columns: ['product_id', 'unit', 'factor']
+[products] 78 rows; columns: ['name', 'base_unit', 'product_id']
+  order_date range 2025-01-01 .. 2026-06-06
+  orders per month: 2025-01:3448, 2025-02:3270, 2025-03:4289, 2025-04:4096, 2025-05:4156, 2025-06:4054, 2025-07:4141, 2025-08:4077, 2025-09:4041, 2025-10:3916, 2025-11:3851, 2025-12:3860, 2026-01:4201, 2026-02:2537, 2026-03:3935, 2026-04:3622, 2026-05:4171, 2026-06:764
+  order hours present: [0]
+  status: {'completed': 65085, 'cancelled': 1219, 'returned': 90, 'delivering': 35}
+  qty: min 1.0, median 1.0, max 10.0, negatives 0
+  qty_base: min 1.0, median 1.0, max 24.0, negatives 0
+  line_amount: min 1000.0, median 89000.0, max 3035000.0, negatives 0
+  qty*unit_price-line_discount == line_amount for 98.7% of lines
+  qty_base/qty factors seen: [1.0, 20.0, 24.0]
+  sum(line_amount) == orders.goods_total for 100.0% of orders
+  completed revenue per month: 2025-01:450,976,000, 2025-02:435,686,000, 2025-03:562,140,000, 2025-04:565,225,000, 2025-05:567,652,500, 2025-06:545,592,500, 2025-07:566,827,500, 2025-08:576,753,000, 2025-09:561,179,000, 2025-10:538,112,500, 2025-11:528,715,000, 2025-12:549,594,800, 2026-01:571,124,700, 2026-02:357,391,800, 2026-03:538,122,600, 2026-04:516,649,000, 2026-05:566,800,200, 2026-06:95,333,100
+meta: {'industry': 'nhà hàng', 'has_customer_codes': False, 'line_no_from_file': False, 'order_codes_from_file': False, 'data_end': '2026-06-06', 'notes': ['No order codes in the data; order_id synthesized from date and row index.', 'Service fee lines identified by product name "Phí phục vụ".', 'Unit conversions provided in README.'], 'extra_desc': {}, 'dropped_duplicate_lines': 0}

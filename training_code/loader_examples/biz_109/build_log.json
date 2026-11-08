@@ -1,0 +1,67 @@
+[
+ {
+  "attempt": 1,
+  "llm_s": 11.85,
+  "cached": false,
+  "reasoning": null,
+  "result": "errors",
+  "errors": [
+   "table 'purchase_lines' is neither canonical nor 'extra_*': map it to a canonical table (e.g. visits/tickets/bookings -> orders + order_lines) or rename it extra_purchase_lines"
+  ],
+  "run_s": 15.0,
+  "partial_ok": [
+   "customers",
+   "order_lines",
+   "orders",
+   "payments",
+   "products",
+   "purchases",
+   "stock",
+   "unit_conversions"
+  ]
+ },
+ {
+  "attempt": 2,
+  "llm_s": 9.45,
+  "cached": false,
+  "reasoning": null,
+  "result": "errors",
+  "errors": [
+   "purchase_lines: failed to build: KeyError(\"['amount'] not in index\")"
+  ],
+  "run_s": 11.9
+ },
+ {
+  "attempt": 3,
+  "llm_s": 9.15,
+  "cached": false,
+  "reasoning": null,
+  "result": "errors",
+  "errors": [
+   "purchase_lines: failed to build: KeyError(\"None of ['unit'] are in the columns\")"
+  ],
+  "run_s": 11.7
+ },
+ {
+  "attempt": 4,
+  "llm_s": 96.67,
+  "cached": false,
+  "reasoning": null,
+  "result": "errors",
+  "errors": [
+   "purchase_lines: failed to build: KeyError(\"None of ['product_id', 'unit'] are in the columns\")"
+  ],
+  "run_s": 99.2
+ },
+ {
+  "attempt": 5,
+  "llm_s": 16.68,
+  "cached": false,
+  "reasoning": null,
+  "result": "errors",
+  "errors": [
+   "table 'purchase_lines' is neither canonical nor 'extra_*': map it to a canonical table (e.g. visits/tickets/bookings -> orders + order_lines) or rename it extra_purchase_lines"
+  ],
+  "run_s": 19.2
+ }
+]

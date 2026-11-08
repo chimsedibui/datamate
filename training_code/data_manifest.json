@@ -1,7 +1,18 @@
 {
   "training_performed": false,
-  "data_generation_performed": false,
-  "datasets": [],
+  "data_generation_performed": true,
+  "datasets": [
+    {
+      "name": "loader_examples",
+      "purpose": "few-shot examples for semantic-layer builds (not training)",
+      "source": "provided training split (data/train), 21 of 30 businesses",
+      "generator": "OpenAI-compatible API (gpt-4o / gpt-5.4-mini), temperature 0",
+      "path": "/code/src/datamate/loader_examples.json",
+      "sha256": "b7f4945cf9ecc1d8b9de4bc88d2afde7ea5cf70c14430219a26741066d155f50",
+      "count": 21,
+      "provenance": "/code/training_code/loader_examples/ (prompts, responses, logs; checksums in manifest.json)"
+    }
+  ],
   "checkpoints": [],
   "inference_models": [
     {

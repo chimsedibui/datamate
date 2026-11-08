@@ -1,0 +1,53 @@
+[
+ {
+  "attempt": 1,
+  "llm_s": 15.11,
+  "cached": false,
+  "reasoning": null,
+  "result": "exception",
+  "error": "Traceback (most recent call last):\n  File \"/home/khanhxoe/work/10.DataMate/src/datamate/mapper.py\", line 199, in build\n    \"\"\"\n        \n  File \"/home/khanhxoe/work/10.DataMate/src/datamate/mapper.py\", line 152, in run_loader\n  File \"<loader>\", line 73, in load\n  File \"<loader>\", line 4, in parse_vnd\n  File \"/home/khanhxoe/work/10.DataMate/.venv/lib/python3.12/site-packages/pandas/core/generic.py\", line 6434, in __getattr__\n    return object.__getattribute__(self, name)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/khanhxoe/work/10.DataMate/.venv/lib/python3.12/site-packages/pandas/core/accessor.py\", line 231, in __get__\n    return self._accessor(obj)\n           ^^^^^^^^^^^^^^^^^^^\nAttributeError: Can only use .str accessor with string values, not integer. Did you mean: 'std'?\n"
+ },
+ {
+  "attempt": 2,
+  "llm_s": 11.61,
+  "cached": false,
+  "reasoning": null,
+  "result": "errors",
+  "errors": [
+   "products: unknown columns ['Tồn nhỏ nhất', 'Loại hàng hóa', 'Tồn lớn nhất', 'Ghi chú', 'Thương hiệu', 'Mã HH Liên quan', 'Mẫu ghi chú', 'Mã barcode', 'Vị trí', 'Thuộc tính', 'Hình ảnh', 'Mô tả chi tiết', 'Trọng lượng', 'Thời gian tạo'] (use only schema columns, or return them in an extra table)",
+   "customers: unknown columns ['Sinh nhật', 'Người tạo', 'Email', 'Loại hình khách', 'Điểm hiện tại', 'CCCD', 'Ghi chú KH', 'Công ty', 'Địa chỉ', 'Trạng thái', 'Giới tính', 'MST', 'Tổng điểm'] (use only schema columns, or return them in an extra table)",
+   "stock: unknown columns ['base_unit'] (use only schema columns, or return them in an extra table)",
+   "purchases: missing required column 'product_name'",
+   "purchases: missing required column 'qty'"
+  ],
+  "run_s": 13.1
+ },
+ {
+  "attempt": 3,
+  "llm_s": 28.98,
+  "cached": false,
+  "reasoning": null,
+  "result": "errors",
+  "errors": [
+   "purchases: missing required column 'product_name'",
+   "purchases: missing required column 'qty'"
+  ],
+  "run_s": 30.5
+ },
+ {
+  "attempt": 4,
+  "llm_s": 14.68,
+  "cached": false,
+  "reasoning": null,
+  "result": "valid",
+  "errors": [],
+  "run_s": 16.3
+ },
+ {
+  "attempt": 5,
+  "llm_s": 11.18,
+  "cached": false,
+  "reasoning": null,
+  "result": "review_ok"
+ }
+]

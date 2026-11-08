@@ -1,0 +1,21 @@
+[orders] 11875 rows; columns: ['order_id', 'order_datetime', 'order_date', 'status', 'status_raw', 'customer_id', 'customer_name', 'goods_total']
+  orders.customer_id: 100.0% null
+  orders.customer_name: 19.6% null
+[order_lines] 26119 rows; columns: ['order_id', 'line_no', 'product_name', 'unit', 'qty', 'qty_base', 'unit_price', 'line_amount', 'is_fee']
+[products] 60 rows; columns: ['product_id', 'name', 'base_unit', 'active']
+  products.base_unit: 78.3% null
+[unit_conversions] 13 rows; columns: ['product_id', 'unit', 'factor']
+  order_date range 2025-01-01 .. 2026-06-21
+  orders per month: 2025-01:513, 2025-02:535, 2025-03:657, 2025-04:728, 2025-05:666, 2025-06:673, 2025-07:700, 2025-08:768, 2025-09:664, 2025-10:722, 2025-11:710, 2025-12:728, 2026-01:738, 2026-02:423, 2026-03:699, 2026-04:729, 2026-05:736, 2026-06:486
+  order hours present: [0]
+  status: {'completed': 11535, 'cancelled': 240, 'returned': 93, 'delivering': 7}
+  customer_id: 0 distinct, 100.0% walk-in/null; top: {}
+  customer_name: 122 distinct, 19.6% walk-in/null; top: {'kl': 1164, 'lẻ': 1160, 'Tống Hồng Hải': 76}
+  qty: min 1.0, median 1.0, max 20.0, negatives 0
+  qty_base: min 1.0, median 1.0, max 1000.0, negatives 0
+  line_amount: min 1300.0, median 280000.0, max 27600000.0, negatives 0
+  qty*unit_price-line_discount == line_amount for 98.1% of lines
+  qty_base/qty factors seen: [1.0, 4.0, 10.0, 20.0, 1000.0]
+  sum(line_amount) == orders.goods_total for 100.0% of orders
+  completed revenue per month: 2025-01:784,196,000, 2025-02:782,403,200, 2025-03:929,671,600, 2025-04:1,056,900,700, 2025-05:1,009,970,700, 2025-06:937,024,900, 2025-07:974,738,600, 2025-08:1,080,745,400, 2025-09:1,027,945,100, 2025-10:1,081,908,900, 2025-11:1,089,671,800, 2025-12:898,372,200, 2026-01:1,187,328,400, 2026-02:621,732,100, 2026-03:956,051,900, 2026-04:976,694,200, 2026-05:1,037,579,200, 2026-06:568,398,000
+meta: {'industry': 'vật liệu xây dựng', 'has_customer_codes': False, 'line_no_from_file': False, 'data_end': '2026-06-21', 'notes': ['Units are recorded in the file and converted to base units using the provided conversion table.', 'Customer codes are not recorded; customers are identified by name.'], 'extra_desc': {}, 'dropped_duplicate_lines': 0}

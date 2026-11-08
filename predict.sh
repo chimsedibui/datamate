@@ -26,6 +26,7 @@ BUILD_DEADLINE=$((START + 5400))              # no new semantic build after 1.5 
 DEADLINE=$((START + TIME_LIMIT - 900))        # no new question in the last 15 min
 QA_JOBS=${QA_JOBS:-16}
 BUILD_JOBS=${BUILD_JOBS:-8}
+export BUILD_MAX_S=1500 BUILD_MAX_TOKENS=12000 BUILD_EXAMPLES=1   # per-business build time cap, thinking cap, few-shot loaders
 
 mkdir -p "$OUT/logs" "$RUNLOG" "$WORK" /tmp/datamate/llm_cache
 log() { echo "[predict.sh] $(date -u +%FT%TZ) $*" | tee -a "$RUNLOG/predict_sh.log"; }

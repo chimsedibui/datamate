@@ -1,0 +1,28 @@
+[orders] 33065 rows; columns: ['order_id', 'order_datetime', 'order_date', 'status', 'status_raw', 'customer_id', 'customer_name', 'employee', 'channel', 'payment_method', 'payment_method_raw', 'goods_total', 'order_discount', 'total_payable', 'paid_amount', 'debt_remaining']
+  orders.customer_id: 39.6% null
+  orders.customer_name: 29.8% null
+[order_lines] 83284 rows; columns: ['order_id', 'line_no', 'product_id', 'product_name', 'unit', 'qty', 'qty_base', 'unit_price', 'line_discount', 'line_amount', 'cost_per_unit', 'is_fee']
+[products] 60 rows; columns: ['product_id', 'name', 'category', 'base_unit', 'sell_price', 'cost_price', 'active']
+[customers] 320 rows; columns: ['customer_id', 'name', 'group', 'phone', 'registered_date']
+[stock] 60 rows; columns: ['product_id', 'product_name', 'qty_base', 'as_of_date']
+[purchases] 561 rows; columns: ['receipt_id', 'receipt_date', 'supplier', 'amount', 'status', 'note']
+  purchases.note: 99.8% null
+[extra_purchase_lines] 2225 rows; columns: ['receipt_id', 'line_no', 'product_id', 'unit', 'qty', 'unit_cost', 'amount']
+[payments] 36974 rows; columns: ['payment_id', 'order_id', 'paid_datetime', 'amount', 'method', 'kind']
+[unit_conversions] 77 rows; columns: ['product_id', 'unit', 'factor']
+  order_date range 2025-01-01 .. 2026-08-05
+  orders per month: 2025-01:2664, 2025-02:2142, 2025-03:1692, 2025-04:1678, 2025-05:1750, 2025-06:1628, 2025-07:1669, 2025-08:1684, 2025-09:1514, 2025-10:1660, 2025-11:1537, 2025-12:1575, 2026-01:1620, 2026-02:2511, 2026-03:1542, 2026-04:1487, 2026-05:1520, 2026-06:1462, 2026-07:1496, 2026-08:234
+  order hours present: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+  status: {'completed': 31469, 'cancelled': 1054, 'returned': 533, 'delivering': 9}
+  payment_method: {'cash': 15827, 'transfer': 8757, 'debt': 3921, 'ewallet': 2868, 'cod': 1692}
+  customer_id: 320 distinct, 39.6% walk-in/null; top: {'KH0242': 85, 'KH0031': 82, 'KH0105': 82}
+  customer_name: 452 distinct, 29.8% walk-in/null; top: {'Khách lẻ': 3244, 'Hồ Ngọc Hùng': 85, 'Đinh Sơn An': 79}
+  qty: min 1.0, median 1.0, max 10.0, negatives 0
+  qty_base: min 1.0, median 1.0, max 150.0, negatives 0
+  line_amount: min 4000.0, median 25000.0, max 2736000.0, negatives 0
+  qty*unit_price-line_discount == line_amount for 100.0% of lines
+  qty_base/qty factors seen: [1.0, 4.0, 5.0, 6.0, 8.0, 10.0, 12.0, 20.0, 24.0, 25.0, 30.0, 32.0, 36.0, 40.0, 48.0]
+  sum(line_amount) == orders.goods_total for 100.0% of orders
+  completed revenue per month: 2025-01:422,402,500, 2025-02:337,066,700, 2025-03:266,675,100, 2025-04:263,443,400, 2025-05:275,971,900, 2025-06:262,693,900, 2025-07:258,130,900, 2025-08:270,375,400, 2025-09:248,938,800, 2025-10:265,861,700, 2025-11:237,315,600, 2025-12:260,862,900, 2026-01:282,537,900, 2026-02:377,526,600, 2026-03:245,226,200, 2026-04:226,778,500, 2026-05:240,291,200, 2026-06:259,919,900, 2026-07:239,033,300, 2026-08:34,499,200
+  purchases date range 2025-01-01 .. 2026-08-05
+meta: {'industry': 'tạp hoá', 'has_customer_codes': True, 'line_no_from_file': True, 'data_end': '2026-08-05', 'notes': ['Debt is recorded as individual payment rows in SoQuy.', 'Unit conversions are provided in DanhSachDonViTinh sheet.', 'Cost price is recorded per unit sold in DanhSachHoaDonChiTiet sheet.', 'Stock quantities are recorded in the base unit in BaoCaoTonKho sheet.'], 'extra_desc': {'extra_purchase_lines': "purchase lines: columns ['receipt_id', 'line_no', 'product_id', 'unit', 'qty', 'unit_cost', 'amount']"}, 'sanitized': ["table 'purchase_lines' is not canonical -> renamed extra_purchase_lines", 'extra_purchase_lines: extra_desc auto-filled'], 'dropped_duplicate_lines': 0}

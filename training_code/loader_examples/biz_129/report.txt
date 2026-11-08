@@ -1,0 +1,36 @@
+[orders] 38499 rows; columns: ['order_id', 'order_datetime', 'order_date', 'status', 'status_raw', 'customer_id', 'customer_name', 'customer_group', 'payment_method', 'payment_method_raw', 'order_discount', 'shipping_fee', 'vat', 'total_payable', 'paid_amount', 'debt_remaining', 'note']
+  orders.customer_id: 39.5% null
+  orders.customer_name: 39.5% null
+  orders.customer_group: 39.5% null
+  orders.order_discount: 100.0% null
+  orders.shipping_fee: 100.0% null
+  orders.vat: 100.0% null
+  orders.note: 100.0% null
+[order_lines] 145479 rows; columns: ['order_id', 'line_no', 'product_id', 'product_name', 'unit', 'qty', 'qty_base', 'unit_price', 'line_discount', 'line_amount', 'cost_per_unit', 'is_fee']
+  order_lines.cost_per_unit: 100.0% null
+[products] 61 rows; columns: ['product_id', 'name', 'aliases', 'category', 'brand', 'base_unit', 'sell_price', 'cost_price', 'is_prescription', 'active_ingredient', 'size', 'is_prepared', 'active']
+  products.aliases: 100.0% null
+  products.brand: 100.0% null
+  products.cost_price: 100.0% null
+  products.is_prescription: 100.0% null
+  products.active_ingredient: 100.0% null
+  products.size: 100.0% null
+  products.is_prepared: 100.0% null
+[customers] 220 rows; columns: ['customer_id', 'name', 'group', 'phone', 'registered_date']
+  customers.registered_date: 100.0% null
+[payments] 38072 rows; columns: ['payment_id', 'order_id', 'paid_datetime', 'amount', 'method', 'kind']
+[unit_conversions] 8 rows; columns: ['product_id', 'unit', 'factor']
+  order_date range 2025-01-01 .. 2026-08-14
+  orders per month: 2025-01:1880, 2025-02:1749, 2025-03:2277, 2025-04:2120, 2025-05:2241, 2025-06:2089, 2025-07:2105, 2025-08:2154, 2025-09:2063, 2025-10:2028, 2025-11:2068, 2025-12:1964, 2026-01:2098, 2026-02:1331, 2026-03:1965, 2026-04:1856, 2026-05:1964, 2026-06:1817, 2026-07:1851, 2026-08:879
+  order hours present: [0]
+  status: {'completed': 37673, 'cancelled': 741, 'returned': 72, 'delivering': 13}
+  payment_method: {'cash': 17182, 'transfer': 15345, 'ewallet': 3872, 'cod': 1870, 'debt': 230}
+  customer_id: 220 distinct, 39.5% walk-in/null; top: {'KH0165': 135, 'KH0145': 130, 'KH0021': 129}
+  customer_name: 220 distinct, 39.5% walk-in/null; top: {'Hoàng Phúc Hà': 135, 'Tạ Trung Sơn': 130, 'Vũ Nam Thảo': 129}
+  qty: min 1.0, median 1.0, max 10.0, negatives 0
+  qty_base: min 1.0, median 1.0, max 24.0, negatives 0
+  line_amount: min 1000.0, median 90000.0, max 3185000.0, negatives 0
+  qty*unit_price-line_discount == line_amount for 100.0% of lines
+  qty_base/qty factors seen: [1.0, 20.0, 24.0]
+  completed revenue per month: 2025-01:955,917,000, 2025-02:893,694,500, 2025-03:1,178,451,500, 2025-04:1,123,026,000, 2025-05:1,177,286,000, 2025-06:1,080,078,000, 2025-07:1,047,636,000, 2025-08:1,116,621,000, 2025-09:1,096,349,500, 2025-10:1,042,563,500, 2025-11:1,079,614,500, 2025-12:1,007,842,500, 2026-01:1,065,326,000, 2026-02:712,653,000, 2026-03:1,016,912,500, 2026-04:988,062,000, 2026-05:1,024,956,500, 2026-06:945,230,000, 2026-07:1,008,796,000, 2026-08:457,923,000
+meta: {'industry': 'tạp hoá', 'has_customer_codes': True, 'line_no_from_file': True, 'data_end': '2026-08-14', 'notes': ['Phí phục vụ là dòng hàng, không phải order-level adjustment', 'Công nợ được ghi trong bảng thanh_toan.csv', 'Quy đổi đơn vị theo README'], 'extra_desc': {}, 'dropped_duplicate_lines': 0}

@@ -1,0 +1,49 @@
+[
+ {
+  "attempt": 1,
+  "llm_s": 56.28,
+  "cached": false,
+  "reasoning": null,
+  "result": "exception",
+  "error": "Traceback (most recent call last):\n  File \"/home/khanhxoe/work/10.DataMate/.venv/lib/python3.12/site-packages/pandas/io/sql.py\", line 2802, in execute\n    cur.execute(sql, *args)\nsqlite3.OperationalError: ambiguous column name: MaHangHoa\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/home/khanhxoe/work/10.DataMate/src/datamate/mapper.py\", line 271, in build\n    tables, meta = run_loader(code, store)\n                   ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/khanhxoe/work/10.DataMate/src/datamate/mapper.py\", line 189, in run_loader\n    tables, meta = ns[\"load\"](store)\n                   ^^^^^^^^^^^^^^^^^\n  File \"<loader>\", line 93, in load\n  File \"/home/khanhxoe/work/10.DataMate/src/datamate/rawio.py\", line 138, in read_sql\n    return pd.read_sql_query(query, c)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/khanhxoe/work/10.DataMate/.venv/lib/python3.12/site-packages/pandas/io/sql.py\", line 539, in read_sql_query\n    return pandas_sql.read_query(\n           ^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/khanhxoe/work/10.DataMate/.venv/lib/python3.12/site-packages/pandas/io/sql.py\", line 2877, in read_query\n    cursor = self.execute(sql, params)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\npandas.errors.DatabaseError: Execution failed on sql '\n        SELECT MaHangHoa AS product_id,\n               TenGoi AS name,\n               NULL AS aliases,\n               DanhMuc AS category,\n               thuong_hieu AS brand,\n               DonViCoSo AS base_unit,\n               GiaBanLe AS sell_price,\n               GiaVonHang AS cost_price,\n               thong_tin_thuoc.BanTheoDon AS is_prescription,\n               thong_tin_thuoc.ThanhPhanChinh AS active_ingredient,\n               NULL AS size,\n               NULL AS is_prepared,\n               ConKinhDoanh AS active\n        FROM san_pham\n        LEFT JOIN thong_tin_thuoc ON san_pham.MaHangHoa = thong_tin_thuoc.MaHangHoa\n    ': ambiguous column name: MaHangHoa\n"
+ },
+ {
+  "attempt": 2,
+  "llm_s": 19.62,
+  "cached": false,
+  "reasoning": null,
+  "result": "exception",
+  "error": "Traceback (most recent call last):\n  File \"/home/khanhxoe/work/10.DataMate/.venv/lib/python3.12/site-packages/pandas/io/sql.py\", line 2802, in execute\n    cur.execute(sql, *args)\nsqlite3.OperationalError: near \"group\": syntax error\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/home/khanhxoe/work/10.DataMate/src/datamate/mapper.py\", line 271, in build\n    tables, meta = run_loader(code, store)\n                   ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/khanhxoe/work/10.DataMate/src/datamate/mapper.py\", line 189, in run_loader\n    tables, meta = ns[\"load\"](store)\n                   ^^^^^^^^^^^^^^^^^\n  File \"<loader>\", line 115, in load\n  File \"/home/khanhxoe/work/10.DataMate/src/datamate/rawio.py\", line 138, in read_sql\n    return pd.read_sql_query(query, c)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/khanhxoe/work/10.DataMate/.venv/lib/python3.12/site-packages/pandas/io/sql.py\", line 539, in read_sql_query\n    return pandas_sql.read_query(\n           ^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/khanhxoe/work/10.DataMate/.venv/lib/python3.12/site-packages/pandas/io/sql.py\", line 2877, in read_query\n    cursor = self.execute(sql, params)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\npandas.errors.DatabaseError: Execution failed on sql '\n        SELECT MaKhachHang AS customer_id,\n               TenGoi AS name,\n               LoaiKhachHang AS group,\n               SoDienThoai AS phone,\n               TaoLuc AS registered_date\n        FROM khach_hang\n    ': near \"group\": syntax error\n"
+ },
+ {
+  "attempt": 3,
+  "llm_s": 13.0,
+  "cached": false,
+  "reasoning": null,
+  "result": "errors",
+  "errors": [
+   "order_lines.product_name: 100.0% null (required)",
+   "stock.product_name: 100.0% null (required)",
+   "batches: failed to build: DatabaseError(\"Execution failed on sql '\\n            SELECT MaLo AS batch_id,\\n                   MaHangHoa AS product_id,\\n                   HanSuDung AS expiry_date,\\n                   SLNhapQuyDoi AS qty_in_base,\\n                   DonGiaNhap AS unit_cost_base,\\n                   MaPhieuNhap",
+   "batch_sales: failed to build: DatabaseError(\"Execution failed on sql '\\n            SELECT MaHoaDon AS order_id,\\n                   SoThuTu AS line_no,\\n                   MaHangHoa AS product_id,\\n                   MaLo AS batch_id,\\n                   SLQuyDoi AS qty_base,\\n                   SLTraQuyDoi AS qty_returned_base",
+   "expenses: failed to build: DatabaseError(\"Execution failed on sql '\\n            SELECT DATE(NgayGioPhatSinh) AS expense_date,\\n                   LoaiGiaoDich AS category,\\n                   ABS(SLQuyDoi * GiaVonHang) AS amount,\\n                   NULL AS note\\n            FROM the_kho\\n            WHERE LoaiGiaoDich = 'ex"
+  ],
+  "run_s": 14.0
+ },
+ {
+  "attempt": 4,
+  "llm_s": 16.56,
+  "cached": false,
+  "reasoning": null,
+  "result": "valid",
+  "errors": [],
+  "run_s": 17.7
+ },
+ {
+  "attempt": 5,
+  "llm_s": 4.65,
+  "cached": false,
+  "reasoning": null,
+  "result": "review_ok"
+ }
+]

@@ -1,0 +1,63 @@
+[
+ {
+  "attempt": 1,
+  "llm_s": 15.61,
+  "cached": false,
+  "reasoning": null,
+  "result": "exception",
+  "error": "Traceback (most recent call last):\n  File \"/home/khanhxoe/work/10.DataMate/src/datamate/mapper.py\", line 276, in build\n    tables, meta = sanitize(*run_loader(code, store))\n                             ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/khanhxoe/work/10.DataMate/src/datamate/mapper.py\", line 194, in run_loader\n    tables, meta = ns[\"load\"](store)\n                   ^^^^^^^^^^^^^^^^^\n  File \"<loader>\", line 101, in load\n  File \"/home/khanhxoe/work/10.DataMate/.venv/lib/python3.12/site-packages/pandas/core/generic.py\", line 6434, in __getattr__\n    return object.__getattribute__(self, name)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/khanhxoe/work/10.DataMate/.venv/lib/python3.12/site-packages/pandas/core/accessor.py\", line 231, in __get__\n    return self._accessor(obj)\n           ^^^^^^^^^^^^^^^^^^^\n  File \"/home/khanhxoe/work/10.DataMate/.venv/lib/python3.12/site-packages/pandas/core/indexes/accessors.py\", line 883, in __new__\n    raise AttributeError(\"Can only use .dt accessor with datetimelike values\")\nAttributeError: Can only use .dt accessor with datetimelike values\n"
+ },
+ {
+  "attempt": 2,
+  "llm_s": 7.49,
+  "cached": false,
+  "reasoning": null,
+  "result": "errors",
+  "errors": [
+   "order_lines.qty_base: 85.7% null (required)",
+   "order_lines.line_amount: 46.4% null (required)",
+   "purchases.amount: 100.0% null (required)",
+   "order_lines.line_amount: 38478 lines are null (money string not parsed? check the raw values of those rows): [{'order_id': 'ORD000002', 'product_name': 'Hagifen 400mg DHG hộp 10 vỉ x 10 viên', 'qty': 1.0, 'unit_price': 6000.0}, {'order_id': 'ORD000004', 'product_name': 'Bisolvon 8mg hộp 3 vỉ x 10 viên', 'qty': 2.0, 'unit_price': nan}, {'order_id': 'ORD000004', 'product_name': 'Hapacol 250 hộp 24 gói', 'qty': 10.0, 'unit_price': 2000.0}]",
+   "sum(order_lines.line_amount) matches orders.goods_total for only 66.5% of orders — check line_amount / goods_total mapping (or drop goods_total if it means something else)"
+  ],
+  "run_s": 9.2
+ },
+ {
+  "attempt": 3,
+  "llm_s": 9.0,
+  "cached": false,
+  "reasoning": null,
+  "result": "exception",
+  "error": "Traceback (most recent call last):\n  File \"/home/khanhxoe/work/10.DataMate/.venv/lib/python3.12/site-packages/pandas/core/indexes/base.py\", line 3816, in get_loc\n    return self._engine.get_loc(casted_key)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"pandas/_libs/index.pyx\", line 172, in pandas._libs.index.IndexEngine.get_loc\n  File \"pandas/_libs/index.pyx\", line 201, in pandas._libs.index.IndexEngine.get_loc\n  File \"pandas/_libs/hashtable_class_helper.pxi\", line 7726, in pandas._libs.hashtable.PyObjectHashTable.get_item\n  File \"pandas/_libs/hashtable_class_helper.pxi\", line 7734, in pandas._libs.hashtable.PyObjectHashTable.get_item\nKeyError: 'unit_cost'\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/home/khanhxoe/work/10.DataMate/src/datamate/mapper.py\", line 276, in build\n    tables, meta = sanitize(*run_loader(code, store))\n                             ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/khanhxoe/work/10.DataMate/src/datamate/mapper.py\", line 194, in run_loader\n    tables, meta = ns[\"load\"](store)\n                   ^^^^^^^^^^^^^^^^^\n  File \"<loader>\", line 83, in load\n  File \"/home/khanhxoe/work/10.DataMate/.venv/lib/python3.12/site-packages/pandas/core/frame.py\", line 4330, in __getitem__\n    indexer = self.columns.get_loc(key)\n              ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/khanhxoe/work/10.DataMate/.venv/lib/python3.12/site-packages/pandas/core/indexes/base.py\", line 3823, in get_loc\n    raise KeyError(key) from err\nKeyError: 'unit_cost'\n"
+ },
+ {
+  "attempt": 4,
+  "llm_s": 8.81,
+  "cached": false,
+  "reasoning": null,
+  "result": "errors",
+  "errors": [
+   "order_lines.qty_base: 85.7% null (required)",
+   "purchases.amount: 100.0% null (required)"
+  ],
+  "run_s": 10.7
+ },
+ {
+  "attempt": 5,
+  "llm_s": 9.27,
+  "cached": false,
+  "reasoning": null,
+  "result": "errors",
+  "errors": [
+   "purchases.amount: 100.0% null (required)"
+  ],
+  "run_s": 11.1,
+  "partial_ok": [
+   "batch_sales",
+   "order_lines",
+   "orders",
+   "products",
+   "unit_conversions"
+  ]
+ }
+]

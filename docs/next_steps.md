@@ -28,20 +28,27 @@ Không làm phần trích synonym từ README: không README nào trong train/pu
 
 Tắt bằng env: `DM_GATE=0` (tắt toàn bộ gate), `DM_ABSTAIN_RAW=0` (vẫn trả lời từ raw).
 
-## Kế hoạch test (một lần, khi có key mới)
+## Vòng 3: giúp Qwen3-14B tự build semantic layer (đã triển khai)
 
-1. **Mẫu chuẩn**, so với q14e (PA 0.447):
-   ```bash
-   python src/predict.py --split data/train --work work/train --out out/train_v2 --per-biz 5 --jobs 6
-   python src/evaluate.py --pred out/train_v2/submission.jsonl --split data/train
-   ```
-2. **Tập công nợ + đơn vị** (270 câu): file câu hỏi nằm trong scratchpad của phiên này. Có thể tạo lại bằng cách lọc `questions.jsonl` theo các từ: nợ, mua chịu, kg, m3, lon, thùng, "một <đơn vị>".
-3. **Build lại 5 business lỗi** để kiểm chứng sanitize và domain summary:
-   ```bash
-   python src/build_semantic.py ... --retry-failed
-   ```
+Lý do: khi BTC chấm, layer do **Qwen3-14B** build, không phải gpt-4o. Log cũ cho thấy Qwen chỉ build được 0/13 business khi tắt thinking và 3/13 khi bật thinking (log có nhiễu do giới hạn request của model free).
 
-**Lưu ý chi phí:** `LLM_BUDGET_USD` là trần cho mỗi process, tính theo `LLM_PRICE_IN/OUT` (đang đặt giá gpt-4o là 2.5/10). Khi chạy model khác, cần đặt giá tương ứng, nếu không trần sẽ cắt sớm. Lần chạy tập 270 câu bị cắt ở câu thứ 140 vì lý do này.
+| Mục | Code |
+|---|---|
+| Loader mẫu: 21 loader đã qua validate từ train, chọn 2 mẫu theo độ trùng tên cột + cùng ngành, đưa vào prompt build | `loader_examples.py`, `scripts/build_loader_library.py`; nguồn gốc nằm trong `training_code/loader_examples/` |
+| Chấp nhận layer chỉ còn cảnh báo chất lượng dữ liệu, khi core tables đúng cấu trúc | `mapper._accept_with_warnings` |
+| Mỗi business tối đa 25 phút, 12k token thinking mỗi lần thử, chỉ gửi lại lần thử gần nhất | `Mapper.build`, `predict.sh` |
+| Trả góp (`installment`) tính là nợ, theo rulebook public | `helpers._CREDIT_METHODS` |
+
+## Kế hoạch test
+
+1. **Đo Qwen build trên OpenRouter** (khoảng $2, không cần VM):
+   ```bash
+   bash scripts/measure_qwen_build.sh
+   ```
+   Ra 2 con số: số layer build OK trên 30 business (gpt-4o build được 25/30) và PA trên mẫu 150 câu (q14e: 0.447). Muốn so A/B không dùng loader mẫu thì chạy thêm `EXAMPLES=0 bash scripts/measure_qwen_build.sh`.
+2. **Test image trên VM GCP** (`scripts/gcp/README.md`), chỉ chạy khi bước 1 cho kết quả chấp nhận được.
+
+**Lưu ý chi phí:** `LLM_BUDGET_USD` là trần cho mỗi process, tính theo `LLM_PRICE_IN/OUT`. Script ở bước 1 đã đặt giá Qwen ($0.12/$0.24 mỗi 1M token).
 
 ## Câu cần xem trong lần test tới
 - `skeleton_changed` trong log: nếu LLM viết lại cả code khi chỉ được yêu cầu sửa giá trị, và kết quả thường sai, thì thêm gate cho trường hợp này.

@@ -1,0 +1,40 @@
+[
+ {
+  "attempt": 1,
+  "llm_s": 20.97,
+  "cached": false,
+  "reasoning": null,
+  "result": "errors",
+  "errors": [
+   "sum(order_lines.line_amount) matches orders.goods_total for only 30.1% of orders — check line_amount / goods_total mapping (or drop goods_total if it means something else)"
+  ],
+  "run_s": 22.4
+ },
+ {
+  "attempt": 2,
+  "llm_s": 29.47,
+  "cached": false,
+  "reasoning": null,
+  "result": "errors",
+  "errors": [
+   "sum(order_lines.line_amount) matches orders.goods_total for only 30.1% of orders — check line_amount / goods_total mapping (or drop goods_total if it means something else)"
+  ],
+  "run_s": 30.9
+ },
+ {
+  "attempt": 3,
+  "llm_s": 26.99,
+  "cached": false,
+  "reasoning": null,
+  "result": "valid",
+  "errors": [],
+  "run_s": 28.9
+ },
+ {
+  "attempt": 4,
+  "llm_s": 4.65,
+  "cached": false,
+  "reasoning": null,
+  "result": "review_ok"
+ }
+]

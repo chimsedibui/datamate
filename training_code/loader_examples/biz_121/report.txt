@@ -1,0 +1,26 @@
+[orders] 44042 rows; columns: ['order_id', 'order_datetime', 'status', 'status_raw', 'customer_name', 'goods_total', 'order_date', 'customer_id', 'order_discount', 'shipping_fee', 'vat', 'total_payable', 'paid_amount', 'debt_remaining', 'note']
+  orders.customer_id: 100.0% null
+  orders.paid_amount: 100.0% null
+  orders.debt_remaining: 100.0% null
+  orders.note: 100.0% null
+[order_lines] 82920 rows; columns: ['order_id', 'product_name', 'qty', 'unit_price', 'line_amount', 'unit', 'qty_base', 'line_no', 'product_id', 'cost_per_unit', 'is_fee']
+  order_lines.product_id: 100.0% null
+  order_lines.cost_per_unit: 100.0% null
+[products] 80 rows; columns: ['product_id', 'name', 'base_unit', 'category', 'active_ingredient', 'is_prescription']
+  products.active_ingredient: 21.2% null
+[unit_conversions] 83 rows; columns: ['product_id', 'unit', 'factor']
+[batch_sales] 84745 rows; columns: ['order_id', 'batch_id', 'qty_base', 'qty_returned_base']
+  order_date range 2025-03-01 .. 2026-09-20
+  orders per month: 2025-03:2412, 2025-04:2182, 2025-05:2233, 2025-06:2288, 2025-07:2356, 2025-08:2352, 2025-09:2263, 2025-10:2404, 2025-11:2339, 2025-12:2471, 2026-01:2391, 2026-02:2187, 2026-03:2383, 2026-04:2339, 2026-05:2454, 2026-06:2375, 2026-07:2472, 2026-08:2503, 2026-09:1638
+  order hours present: [0]
+  status: {'completed': 43209, 'cancelled': 458, 'returned': 362, 'delivering': 13}
+  customer_id: 0 distinct, 100.0% walk-in/null; top: {}
+  customer_name: 324 distinct, 0.0% walk-in/null; top: {'kl': 4473, 'khách lẻ': 4446, 'Khách lẻ': 4435}
+  qty: min 1.0, median 1.0, max 10.0, negatives 0
+  qty_base: min 1.0, median 2.0, max 500.0, negatives 0
+  line_amount: min 500.0, median 11000.0, max 4500000.0, negatives 0
+  qty*unit_price-line_discount == line_amount for 99.1% of lines
+  qty_base/qty factors seen: [1.0, 4.0, 7.0, 8.0, 10.0, 12.0, 14.0, 16.0, 20.0, 24.0, 25.0, 26.0, 30.0, 50.0, 60.0]
+  sum(line_amount) == orders.goods_total for 100.0% of orders
+  completed revenue per month: 2025-03:250,604,000, 2025-04:230,181,400, 2025-05:243,301,800, 2025-06:253,159,600, 2025-07:264,919,200, 2025-08:254,788,900, 2025-09:241,361,400, 2025-10:293,815,300, 2025-11:253,076,800, 2025-12:267,484,400, 2026-01:264,082,800, 2026-02:250,892,100, 2026-03:259,652,600, 2026-04:259,231,600, 2026-05:281,027,100, 2026-06:257,202,500, 2026-07:268,990,300, 2026-08:275,675,300, 2026-09:182,535,600
+meta: {'industry': 'nhà thuốc', 'has_customer_codes': False, 'line_no_from_file': False, 'order_codes_from_file': True, 'data_end': '2026-09-20', 'notes': ['unit conversions provided in DanhSachQuyDoi', 'batch-level tracking for sales and returns', 'prescription drugs and active ingredients recorded'], 'extra_desc': {}, 'sanitized': ["order_lines: dropped non-schema columns ['order_date', 'status_raw', 'customer_name', 'status', 'factor', 'base_unit']", "products: dropped non-schema columns ['Vị trí', 'Ghi chú', 'Bảo hành', 'Thương hiệu', 'Mẫu ghi chú', 'Trọng lượng', 'Mã barcode', 'Mã HH Liên quan', 'Tồn lớn nhất', 'Hình ảnh (url1,url2...)', 'Thuộc tính', 'Mô tả chi tiết', 'Loại hàng hóa']", "unit_conversions: dropped non-schema columns ['base_unit']"], 'dropped_duplicate_lines': 0, 'dropped_tables': ['purchases'], 'dropped_reasons': ['purchases.amount: 100.0% null (required)']}
