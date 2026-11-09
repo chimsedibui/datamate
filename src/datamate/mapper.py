@@ -417,9 +417,14 @@ class Mapper:
         if best is None and lenient is not None:
             best = lenient
         if best is None:
-            return self.auto_build(biz_id, biz_dir, fp=fp)
+            if _automap_enabled():
+                return self.auto_build(biz_id, biz_dir, fp=fp)
+            meta = {"biz_id": biz_id, "ok": False, "fingerprint": fp}
+            (out / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1))
+            return meta
         code, tables, meta, report = best
-        tables, meta, report = _cross_check(tables, meta, report, store)
+        if _automap_enabled() and os.environ.get("DM_CROSS_CHECK", "0") == "1":
+            tables, meta, report = _cross_check(tables, meta, report, store)
         (out / "loader.py").write_text(code)
         (out / "report.txt").write_text(report)
         tdir = out / "tables"
@@ -432,6 +437,14 @@ class Mapper:
             meta["domain"] = domain
         (out / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1, default=str))
         return meta
+
+
+def _automap_enabled() -> bool:
+    """automap layers are off by default: on the public test their answers scored -117 over 487 (38% correct; the
+    layer has correct totals but none of the rulebook detail: fee/voucher lines, negative return lines, units),
+    while shops without a layer abstain at 0. Replacing a Qwen layer's core tables after a cross-check also lost
+    (+4 -> -15 on two shops). Set DM_AUTOMAP=1 (and DM_CROSS_CHECK=1) to use them."""
+    return os.environ.get("DM_AUTOMAP", "0") == "1"
 
 
 def _core_stats(tables: dict) -> dict | None:
