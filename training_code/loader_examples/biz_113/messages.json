@@ -13,7 +13,7 @@
  },
  {
   "role": "user",
-  "content": "The code raised an exception:\n```\nTraceback (most recent call last):\n  File \"/home/khanhxoe/work/10.DataMate/src/datamate/mapper.py\", line 266, in build\n    tables, meta = run_loader(code, store)\n                   ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/khanhxoe/work/10.DataMate/src/datamate/mapper.py\", line 187, in run_loader\n    tables, meta = ns[\"load\"](store)\n                   ^^^^^^^^^^^^^^^^^\n  File \"<loader>\", line 44, in load\nAttributeError: 'Index' object has no attribute 'apply'\n\n```\n\nFix it and return the full code."
+  "content": "The code raised an exception:\n```\nTraceback (most recent call last):\n  File \"<repo>/src/datamate/mapper.py\", line 266, in build\n    tables, meta = run_loader(code, store)\n                   ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<repo>/src/datamate/mapper.py\", line 187, in run_loader\n    tables, meta = ns[\"load\"](store)\n                   ^^^^^^^^^^^^^^^^^\n  File \"<loader>\", line 44, in load\nAttributeError: 'Index' object has no attribute 'apply'\n\n```\n\nFix it and return the full code."
  },
  {
   "role": "assistant",

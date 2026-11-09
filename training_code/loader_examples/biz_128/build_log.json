@@ -5,7 +5,7 @@
   "cached": false,
   "reasoning": null,
   "result": "exception",
-  "error": "Traceback (most recent call last):\n  File \"/home/khanhxoe/work/10.DataMate/src/datamate/mapper.py\", line 199, in build\n    \"\"\"\n        \n  File \"/home/khanhxoe/work/10.DataMate/src/datamate/mapper.py\", line 152, in run_loader\n  File \"<loader>\", line 73, in load\n  File \"<loader>\", line 4, in parse_vnd\n  File \"/home/khanhxoe/work/10.DataMate/.venv/lib/python3.12/site-packages/pandas/core/generic.py\", line 6434, in __getattr__\n    return object.__getattribute__(self, name)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/khanhxoe/work/10.DataMate/.venv/lib/python3.12/site-packages/pandas/core/accessor.py\", line 231, in __get__\n    return self._accessor(obj)\n           ^^^^^^^^^^^^^^^^^^^\nAttributeError: Can only use .str accessor with string values, not integer. Did you mean: 'std'?\n"
+  "error": "Traceback (most recent call last):\n  File \"<repo>/src/datamate/mapper.py\", line 199, in build\n    \"\"\"\n        \n  File \"<repo>/src/datamate/mapper.py\", line 152, in run_loader\n  File \"<loader>\", line 73, in load\n  File \"<loader>\", line 4, in parse_vnd\n  File \"<repo>/.venv/lib/python3.12/site-packages/pandas/core/generic.py\", line 6434, in __getattr__\n    return object.__getattribute__(self, name)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<repo>/.venv/lib/python3.12/site-packages/pandas/core/accessor.py\", line 231, in __get__\n    return self._accessor(obj)\n           ^^^^^^^^^^^^^^^^^^^\nAttributeError: Can only use .str accessor with string values, not integer. Did you mean: 'std'?\n"
  },
  {
   "attempt": 2,

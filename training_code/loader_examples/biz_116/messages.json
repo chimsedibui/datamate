@@ -13,7 +13,7 @@
  },
  {
   "role": "user",
-  "content": "The code raised an exception:\n```\nTraceback (most recent call last):\n  File \"/home/khanhxoe/work/10.DataMate/src/datamate/mapper.py\", line 200, in build\n    tables = finalize(tables, meta)\n             ^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/khanhxoe/work/10.DataMate/src/datamate/validate.py\", line 44, in finalize\n    raise ValueError(f\"table '{name}' has duplicate column names {dups} (a rename collided with an \"\nValueError: table 'deliveries' has duplicate column names ['delivery_date'] (a rename collided with an existing column); keep only one column per name\n\n```\n\nFix it and return the full code."
+  "content": "The code raised an exception:\n```\nTraceback (most recent call last):\n  File \"<repo>/src/datamate/mapper.py\", line 200, in build\n    tables = finalize(tables, meta)\n             ^^^^^^^^^^^^^^^^^^^^^^\n  File \"<repo>/src/datamate/validate.py\", line 44, in finalize\n    raise ValueError(f\"table '{name}' has duplicate column names {dups} (a rename collided with an \"\nValueError: table 'deliveries' has duplicate column names ['delivery_date'] (a rename collided with an existing column); keep only one column per name\n\n```\n\nFix it and return the full code."
  },
  {
   "role": "assistant",

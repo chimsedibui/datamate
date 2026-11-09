@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 # Create the 2 x L4 test VM (billing starts now: ~$2.00/h on-demand, ~$1.20/h Spot).
-# Usage: bash scripts/gcp/create_vm.sh          (SPOT=1 for a Spot VM, MAX_HOURS=N for the auto power-off)
+# Usage: bash scripts/gcp/create_vm.sh          (SPOT=1 for a Spot VM, MAX_HOURS=N for the auto power-off,
+#        MAX_RUN=60m for a hard cap enforced by GCP: the VM is stopped after that run time)
 set -euo pipefail
 source "$(dirname "$0")/config.sh"
 
 provisioning=(--provisioning-model=STANDARD)
-[ "$SPOT" = "1" ] && provisioning=(--provisioning-model=SPOT --instance-termination-action=STOP)
+[ "$SPOT" = "1" ] && provisioning=(--provisioning-model=SPOT)
+[ "$SPOT" = "1" ] || [ -n "${MAX_RUN:-}" ] && provisioning+=(--instance-termination-action=STOP)
+[ -n "${MAX_RUN:-}" ] && provisioning+=(--max-run-duration="$MAX_RUN")
 
 # Safety net: power off after MAX_HOURS even if nobody deletes the VM (a stopped VM bills only its disk).
 startup="#!/bin/bash

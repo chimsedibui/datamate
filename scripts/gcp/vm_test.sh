@@ -3,7 +3,7 @@
 # 2 GPUs, no network, read-only /data, 16 GiB shm, predict.sh without arguments.
 #
 #   smoke   20 public_test questions from 2 businesses: the image runs end to end and writes valid outputs (~20-30 min on L4)
-#   train10 50 train questions (10 businesses x 5): full flow (Qwen builds layers, QA) scored, ~40-60 min
+#   train10 train questions from TRAIN_BIZ (10) businesses x 5: full flow (Qwen builds layers, QA) scored, ~60-80 min on L4
 #   train   150 train questions (= predict.py --per-biz 5, seed 0), scored with answers; compare with q14e (PA 0.447,
 #           semantic layers built by gpt-4o) to see the effect of building them with Qwen3-14B (~1.5-2 h)
 #   repro   the same 150 questions a second time + diff with the first run (rule: |ΔPA| <= 0.03) (~1.5-2 h)
@@ -26,7 +26,7 @@ for s in $stages; do
     python3 scripts/make_subset.py --split data/public_test --out "$R/data_smoke" --per-biz 10 --max-biz 2
     bash scripts/check_submission.sh run "$R/data_smoke" "$R/smoke" 2>&1 | tee "$R/smoke.txt" ;;
   train10)
-    [ -d "$R/data_train10" ] || python3 scripts/make_subset.py --split data/train --out "$R/data_train10" --per-biz 5 --max-biz 10
+    [ -d "$R/data_train10" ] || python3 scripts/make_subset.py --split data/train --out "$R/data_train10" --per-biz 5 --max-biz "${TRAIN_BIZ:-10}"
     bash scripts/check_submission.sh run "$R/data_train10" "$R/train10" 2>&1 | tee "$R/train10.txt" ;;
   train)
     [ -d "$R/data_train150" ] || python3 scripts/make_subset.py --split data/train --out "$R/data_train150" --per-biz 5
