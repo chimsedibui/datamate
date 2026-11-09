@@ -251,6 +251,9 @@ def validate(tables: dict[str, pd.DataFrame], meta: dict) -> tuple[list[str], st
         # Non-sales businesses may legitimately have no orders; they are answered from extra_* tables.
         extras = [n for n in tables if n.startswith("extra_")]
         rep.append("  WARNING: no orders table; extra tables: " + (", ".join(extras) or "none"))
+        if not extras:
+            errs.append(f"no orders table (only {sorted(tables)}): map the sales/transaction files to orders + "
+                        "order_lines; extra_* tables are only for data with no canonical home")
         missing = [n for n in extras if n not in meta.get("extra_desc", {})]
         if missing:
             errs.append(f"meta['extra_desc'] missing description for {missing}")

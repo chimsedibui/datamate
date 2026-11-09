@@ -285,6 +285,7 @@ class Mapper:
         partial = None
         lenient = None  # core tables structurally valid, only data-quality warnings left
         reviewed = False
+        seen: dict[str, int] = {}  # code -> first attempt that produced it
         t_start = time.time()
         max_s = float(os.environ.get("BUILD_MAX_S", "1500"))
         max_tokens = int(os.environ.get("BUILD_MAX_TOKENS", "12000"))
@@ -299,8 +300,19 @@ class Mapper:
             # Thinking needs a large output budget, but prompt + output must fit the served context window.
             est_prompt = int(sum(len(m["content"]) for m in call) / 2.5)  # Vietnamese + code: ~2.5 chars/token
             budget = max(4000, min(max_tokens, int(os.environ.get("LLM_CONTEXT", "40960")) - est_prompt - 512))
-            res = self.llm.chat(call, max_tokens=budget, thinking=True)
+            # Retries sample (seeded, so runs stay reproducible): at temperature 0 with the trimmed history a retry
+            # can be byte-identical to the previous request and return the same failing code from cache.
+            res = self.llm.chat(call, max_tokens=budget, thinking=True,
+                                temperature=0.0 if attempt == 1 else 0.6, seed=42 + attempt)
             code = extract_code(res.content)
+            repeat = ""
+            if code is not None:
+                key = code.strip()
+                if key in seen:
+                    repeat = (f"\n\nThis is the same code as attempt {seen[key]}, which already failed this way. Do not "
+                              "resend it: use the exact column names listed for THIS business, not the ones in the "
+                              "example loaders.")
+                seen.setdefault(key, attempt)
             entry = {"attempt": attempt, "llm_s": res.usage.get("latency_s"), "cached": res.cached,
                      "reasoning": res.reasoning}
             messages.append({"role": "assistant", "content": res.content})
@@ -322,11 +334,12 @@ class Mapper:
                 tb = traceback.format_exc(limit=6)
                 entry.update(result="exception", error=tb[-3000:])
                 log.append(entry)
-                hint = ("\nExact columns returned by raw.read_table(file, sheet) with default arguments:\n"
+                hint = ("\nExact columns returned by raw.read_table(file, sheet) with default arguments (the example "
+                        "loaders were written for other shops; their column names do not exist here):\n"
                         + columns_overview(store)) if "KeyError" in tb else ""
                 messages.append({"role": "user", "content":
                                  f"The code raised an exception:\n```\n{tb[-3000:]}\n```\n{hint}\n"
-                                 "Fix it and return the full code."})
+                                 "Fix it and return the full code." + repeat})
                 continue
             entry.update(result="errors" if errs else "valid", errors=errs, run_s=round(time.time() - t, 1))
             log.append(entry)
@@ -357,7 +370,7 @@ class Mapper:
                 continue
             messages.append({"role": "user", "content":
                              "Validation errors:\n- " + "\n- ".join(errs) + "\n\nLoad report:\n" + report +
-                             "\n\nFix the code and return the full code."})
+                             "\n\nFix the code and return the full code." + repeat})
         (out / "build_log.json").write_text(json.dumps(log, ensure_ascii=False, indent=1, default=str))
         (out / "messages.json").write_text(json.dumps(messages, ensure_ascii=False, indent=1))
         if best is None and partial is not None:
