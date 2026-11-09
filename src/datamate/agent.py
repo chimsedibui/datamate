@@ -323,7 +323,8 @@ class Agent:
     def answer(self, q: dict) -> QAResult:
         t0 = time.time()
         tables, desc, source = self._ctx[q["business_id"]]
-        early = checks.gate_source(source)
+        early = checks.gate_source(source) or (checks.gate_tables(q["question"], tables) if source == "semantic"
+                                               else None)
         if early:
             pred = {"type": "abstain"}
             return QAResult(pred, self._log(q, t0, pred, source, gate=early))

@@ -6,6 +6,7 @@
 #   bash scripts/run_public.sh                       # build + qa_qwen + qa_gpt4o
 #   STAGES="build qa_qwen" bash scripts/run_public.sh
 #   STAGES=qa_gpt4o GPT_BUDGET=30 bash scripts/run_public.sh
+#   WORK=work/public_mix TAG=mix STAGES=qa_qwen bash scripts/run_public.sh   # QA on another layer folder
 #
 # Outputs: out/public_<model>/submission.jsonl (upload this) + logs/, layers in work/public_qwen.
 # Cost (measured token use, list prices): build ~$0.3, qa_qwen ~$2-3, qa_gpt4o ~$30-50. Each stage has its own cap.
@@ -14,7 +15,7 @@ cd "$(dirname "$0")/.."
 
 STAGES=${STAGES:-"build qa_qwen qa_gpt4o"}
 SPLIT=data/public_test
-WORK=work/public_qwen
+WORK=${WORK:-work/public_qwen}
 PY=${PY:-.venv/bin/python}
 key() { grep -E "^$1=" .env | cut -d= -f2-; }
 
@@ -33,7 +34,7 @@ gpt4o_env() {
 }
 
 qa() {  # qa <name>
-  local out=out/public_$1
+  local out=out/public_$1${TAG:+_$TAG}
   mkdir -p "$out"
   echo "== QA $1 ($LLM_MODEL, cap \$$LLM_BUDGET_USD) -> $out"
   $PY src/predict.py --split "$SPLIT" --work "$WORK" --out "$out" --jobs "${QA_JOBS:-8}" > "$out/predict.log" 2>&1 || true

@@ -393,6 +393,49 @@ def review(question: str, pred: dict, issues: list[ValueIssue], tables: dict,
     return probs
 
 
+def _has(tables: dict, table: str, col: str | None = None) -> bool:
+    df = tables.get(table)
+    if df is None or not len(df):
+        return False
+    return col is None or (col in df and df[col].notna().any())
+
+
+# (folded question pattern, data the question needs, test on the tables). Without that data any number the model
+# produces is a guess, and a wrong answer costs -1 against 0 for abstaining.
+_NEEDS = [
+    (r"nhap hang|nha cung cap|\bncc\b|gia nhap|phieu nhap|nhap ve|nhap them|nhap bao nhieu|lan nhap|tien nhap",
+     "purchases", lambda t: _has(t, "purchases")),
+    (r"san pham|mat hang|\bmon\b|ten hang|ban chay|\bsku\b|nhom hang|loai hang|hang nao|mon nao|\bmat hang\b",
+     "product lines", lambda t: _has(t, "order_lines", "product_name")),
+    (r"cong no|con no|\bno\b|tra gop|ghi no|chua tra|chua thanh toan|\bgop\b",
+     "debt / payments", lambda t: _has(t, "payments") or _has(t, "orders", "debt_remaining")
+     or _has(t, "orders", "paid_amount") or _has(t, "orders", "payment_method")),
+    (r"nhan vien|thu ngan|nguoi ban|\bnv\b|\btho\b",
+     "employee", lambda t: _has(t, "orders", "employee")),
+    (r"\bkenh\b|online|shopee|lazada|tiktok|zalo|facebook|tai quay|san tmdt|\bgrab\b|tren san|san thuong mai",
+     "sales channel", lambda t: _has(t, "orders", "channel")),
+    (r"chi nhanh|\bco so (\d|mot|hai|chinh)|cua hang so \d",
+     "branch", lambda t: _has(t, "orders", "branch")),
+    (r"tien mat|chuyen khoan|vi dien tu|momo|quet the|phuong thuc thanh toan|hinh thuc thanh toan|\bcod\b",
+     "payment method", lambda t: _has(t, "orders", "payment_method") or _has(t, "payments", "method")),
+    (r"loi nhuan|\blai\b|gia von|\blo von\b|\blo\b",
+     "cost", lambda t: _has(t, "order_lines", "cost_per_unit") or _has(t, "products", "cost_price")
+     or _has(t, "purchases")),
+]
+_NEEDS = [(re.compile(p), what, test) for p, what, test in _NEEDS]
+
+
+def gate_tables(question: str, tables: dict) -> str | None:
+    """Reason to abstain before any LLM call when the question needs data this layer does not have, or None."""
+    if not _enabled("DM_GATE") or not _enabled("DM_GATE_TABLES"):
+        return None
+    f = fold_text(question) or ""
+    for rx, what, test in _NEEDS:
+        if rx.search(f) and not test(tables):
+            return f"needs {what}, not in this business's tables"
+    return None
+
+
 def gate_source(source: str) -> str | None:
     """Reason to abstain before spending any LLM call on the question, or None."""
     if _enabled("DM_GATE") and source == "raw" and _enabled("DM_ABSTAIN_RAW"):

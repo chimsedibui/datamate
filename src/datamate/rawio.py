@@ -44,7 +44,16 @@ class RawStore:
     def list_files(self) -> list[str]:
         return [f for f in self._real if not f.lower().endswith(".md")]
 
+    @staticmethod
+    def _split(file: str, sheet=None):
+        """Accept 'file.xlsx::Sheet' (how the profile labels sheets) as well as (file, sheet)."""
+        if isinstance(file, str) and "::" in file:
+            file, sh = file.split("::", 1)
+            sheet = sheet if sheet is not None else (sh or None)
+        return file, sheet
+
     def path(self, file: str) -> str:
+        file, _ = self._split(file)
         real = self._real.get(_nfc(file), file)
         return os.path.join(self.dir, real)
 
@@ -52,8 +61,11 @@ class RawStore:
         p = os.path.join(self.dir, "README.md")
         return open(p, encoding="utf-8").read() if os.path.exists(p) else ""
 
-    @lru_cache(maxsize=None)
     def sheet_names(self, file: str) -> list[str]:
+        return self._sheet_names(self._split(file)[0])
+
+    @lru_cache(maxsize=None)
+    def _sheet_names(self, file: str) -> list[str]:
         p = self.path(file)
         if p.endswith(".xlsx") or p.endswith(".xls"):
             return list(pd.ExcelFile(p, engine="calamine").sheet_names)
@@ -68,6 +80,7 @@ class RawStore:
 
     def read_raw(self, file: str, sheet=None) -> pd.DataFrame:
         """Cells exactly as stored, no header inference (row 0 = first row of the sheet)."""
+        file, sheet = self._split(file, sheet)
         p = self.path(file)
         if p.endswith(".xlsx") or p.endswith(".xls"):
             sheets = self._xlsx_all(file)
@@ -103,6 +116,7 @@ class RawStore:
         get the upper label prefixed ('Tiền|ĐG'); remaining duplicates get '.1', '.2'.
         Fully empty rows are dropped.
         """
+        file, sheet = self._split(file, sheet)
         raw = self.read_raw(file, sheet)
         if skip_rows is None:
             from .profile import guess_header_row

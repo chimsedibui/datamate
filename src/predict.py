@@ -52,15 +52,18 @@ def build_all(llm, rulebook, work, split, bizs, jobs, deadline):
     mapper = Mapper(llm, rulebook, work)
 
     def one(b):
-        if deadline and time.time() > deadline:
-            print(f"{b}: build skipped (build deadline reached) -> raw", flush=True)
-            return
         t = time.time()
+        if deadline and time.time() > deadline:
+            r = mapper.auto_build(b, str(split / "data" / b))
+            print(f"{b}: build deadline reached -> automap ok={r.get('ok')} {time.time() - t:.0f}s", flush=True)
+            return
         try:
             r = mapper.build(b, str(split / "data" / b))
             print(f"{b}: build ok={r.get('ok') if isinstance(r, dict) else r} {time.time() - t:.0f}s", flush=True)
         except Exception as e:  # noqa: BLE001
-            print(f"{b}: semantic build failed: {e!r}", flush=True)
+            print(f"{b}: semantic build failed: {e!r} -> automap", flush=True)
+            r = mapper.auto_build(b, str(split / "data" / b))
+            print(f"{b}: automap ok={r.get('ok')} {time.time() - t:.0f}s", flush=True)
 
     with ThreadPoolExecutor(max(1, jobs)) as ex:
         list(ex.map(one, bizs))

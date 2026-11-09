@@ -22,7 +22,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from . import loader_examples, parsers
+from . import automap, loader_examples, parsers
 from .llm import LLM
 from .profile import profile_business
 from .rawio import RawStore
@@ -248,6 +248,45 @@ class Mapper:
                 h.update(hashlib.sha256(p.read_bytes()).digest())
         return h.hexdigest()[:16]
 
+    def auto_build(self, biz_id: str, biz_dir: str, fp: str | None = None) -> dict:
+        """Layer from automap (column names + README, no LLM). Used when every LLM loader failed, when the build
+        deadline has passed, or when the LLM call itself errors. Saved like an LLM build (meta['auto_mapped'])."""
+        out = self.work / biz_id
+        out.mkdir(parents=True, exist_ok=True)
+        fp = fp or self.fingerprint(biz_dir)
+        fail = {"biz_id": biz_id, "ok": False, "fingerprint": fp}
+        try:
+            tables, meta = sanitize(*run_loader(AUTO_LOADER, RawStore(biz_dir)))
+            tables = finalize(tables, meta)
+            errs, report = validate(tables, meta)
+        except Exception as e:  # noqa: BLE001
+            fail["auto_error"] = repr(e)[:300]
+            (out / "meta.json").write_text(json.dumps(fail, ensure_ascii=False, indent=1))
+            return fail
+        if errs:
+            soft = [e for e in errs if _is_soft(e, tables)]
+            if len(soft) < len(errs):
+                acc = _accept_with_warnings(tables, meta, errs) or _drop_bad_tables(tables, meta, errs)
+                if acc is None:
+                    fail["auto_errors"] = errs[:10]
+                    (out / "meta.json").write_text(json.dumps(fail, ensure_ascii=False, indent=1, default=str))
+                    return fail
+                tables, meta, report = acc
+            else:
+                meta["soft_errors"] = soft
+        (out / "loader.py").write_text(AUTO_LOADER)
+        (out / "report.txt").write_text(report)
+        tdir = out / "tables"
+        if tdir.exists():
+            shutil.rmtree(tdir)
+        tdir.mkdir()
+        for name, df in tables.items():
+            df.to_parquet(tdir / f"{name}.parquet", index=False)
+        meta.update(biz_id=biz_id, ok=True, tables=sorted(tables), fingerprint=fp, build_model="automap",
+                    auto_mapped=True)
+        (out / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1, default=str))
+        return meta
+
     def build(self, biz_id: str, biz_dir: str, force: bool = False, retry_failed: bool = False) -> dict:
         """Build (or reuse) the semantic layer. Reused only if the fingerprint matches.
 
@@ -378,10 +417,9 @@ class Mapper:
         if best is None and lenient is not None:
             best = lenient
         if best is None:
-            meta = {"biz_id": biz_id, "ok": False, "fingerprint": fp}
-            (out / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1))
-            return meta
+            return self.auto_build(biz_id, biz_dir, fp=fp)
         code, tables, meta, report = best
+        tables, meta, report = _cross_check(tables, meta, report, store)
         (out / "loader.py").write_text(code)
         (out / "report.txt").write_text(report)
         tdir = out / "tables"
@@ -394,6 +432,60 @@ class Mapper:
             meta["domain"] = domain
         (out / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1, default=str))
         return meta
+
+
+def _core_stats(tables: dict) -> dict | None:
+    o, ln = tables.get("orders"), tables.get("order_lines")
+    if o is None or not len(o) or "order_date" not in o:
+        return None
+    done = o[o["status"] == "completed"] if "status" in o else o
+    rev = None
+    if ln is not None and "line_amount" in ln:
+        rev = float(ln[ln["order_id"].isin(set(done["order_id"]))]["line_amount"].sum())
+    return {"orders": len(o), "done": len(done), "rev": rev, "first": o["order_date"].min()}
+
+
+def _cross_check(tables: dict, meta: dict, report: str, store) -> tuple[dict, dict, str]:
+    """Compare the LLM layer's core facts with automap. automap reads amounts, dates and status straight from the
+    columns and matched the gpt-4o layers on every training shop, while Qwen3-14B layers were off by 3x revenue or
+    missed whole sheets. On a clear disagreement the core tables come from automap; the LLM's other tables stay."""
+    try:
+        at, am = sanitize(*run_loader(AUTO_LOADER, store))
+        at = finalize(at, am)
+        if validate(at, am)[0] and not all(_is_soft(e, at) for e in validate(at, am)[0]):
+            return tables, meta, report
+    except Exception:  # noqa: BLE001 - automap cannot read this shop: keep the LLM layer
+        return tables, meta, report
+    a, b = _core_stats(at), _core_stats(tables)
+    if a is None or b is None:
+        return tables, meta, report
+    why = []
+    if abs(a["orders"] - b["orders"]) > 0.02 * a["orders"]:
+        why.append(f"orders {b['orders']} vs {a['orders']}")
+    if abs(a["done"] - b["done"]) > 0.03 * a["done"]:
+        why.append(f"completed orders {b['done']} vs {a['done']}")
+    if a["rev"] and b["rev"] is not None and abs(a["rev"] - b["rev"]) > 0.05 * a["rev"]:
+        why.append(f"completed revenue {b['rev']:,.0f} vs {a['rev']:,.0f}")
+    if abs((a["first"] - b["first"]).days) > 31:
+        why.append(f"first order date {b['first'].date()} vs {a['first'].date()}")
+    if not why:
+        return tables, meta, report
+    merged = {**{k: v for k, v in tables.items() if k not in CORE_TABLES}, **{k: at[k] for k in CORE_TABLES if k in at}}
+    meta2 = dict(meta, core_from_automap="; ".join(why))
+    errs, rep2 = validate(merged, meta2)
+    if errs and not all(_is_soft(e, merged) for e in errs):
+        acc = _drop_bad_tables(merged, meta2, errs)
+        if acc is None:
+            return at, dict(am, core_from_automap=meta2["core_from_automap"]), validate(at, am)[1]
+        return acc
+    return merged, meta2, rep2
+
+
+AUTO_LOADER = (
+    "# Deterministic fallback layer (no LLM loader passed validation): see datamate/automap.py\n"
+    "def load(raw):\n"
+    "    from datamate.automap import auto_load\n"
+    "    return auto_load(raw)\n")
 
 
 _SOFT = (
