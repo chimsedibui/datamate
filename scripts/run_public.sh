@@ -21,7 +21,7 @@ STAGES=${STAGES:-"build qa_ntq"}
 PROVIDER=${PROVIDER:-ntq}
 SPLIT=data/public_test
 WORK=${WORK:-work/public_$PROVIDER}
-PY=${PY:-.venv/bin/python}
+PY=${PY:-$([ -x .venv/bin/python ] && echo .venv/bin/python || echo python)}   # else the active env (e.g. conda)
 key() { grep -E "^$1=" .env | cut -d= -f2-; }
 
 # Explicit (even empty) values win over .env: python-dotenv does not override variables that are already set.
