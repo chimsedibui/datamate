@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
-# Public-test submissions through APIs (portal Step 2: "Based on 3rd APIs"): semantic layers are built once with
-# Qwen3-14B on OpenRouter (same settings as predict.sh in the image), then QA runs on those same layers per model.
+# Public-test submissions through APIs (portal Step 2: "Based on 3rd APIs"): semantic layers are built once
+# (same settings as predict.sh in the image), then QA runs on those same layers per model.
+# Build provider: PROVIDER=ntq (default, Qwen 27B "nxchat" at api.ntq.ai, key NTQ_API_KEY in .env)
+#                 PROVIDER=openrouter (Qwen3-14B, key OPENROUTER_API_KEY).
 #
 # Usage:
-#   bash scripts/run_public.sh                       # build + qa_qwen + qa_gpt4o
+#   bash scripts/run_public.sh                       # build + qa_ntq (NTQ Qwen 27B)
+#   STAGES="build qa_ntq" bash scripts/run_public.sh
+#   PROVIDER=openrouter STAGES="build qa_qwen qa_gpt4o" bash scripts/run_public.sh
 #   STAGES="build qa_qwen" bash scripts/run_public.sh
 #   STAGES=qa_gpt4o GPT_BUDGET=30 bash scripts/run_public.sh
 #   WORK=work/public_mix TAG=mix STAGES=qa_qwen bash scripts/run_public.sh   # QA on another layer folder
@@ -13,9 +17,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-STAGES=${STAGES:-"build qa_qwen qa_gpt4o"}
+STAGES=${STAGES:-"build qa_ntq"}
+PROVIDER=${PROVIDER:-ntq}
 SPLIT=data/public_test
-WORK=${WORK:-work/public_qwen}
+WORK=${WORK:-work/public_$PROVIDER}
 PY=${PY:-.venv/bin/python}
 key() { grep -E "^$1=" .env | cut -d= -f2-; }
 
@@ -28,6 +33,11 @@ qwen_env() {
   export LLM_BASE_URL=https://openrouter.ai/api/v1 LLM_API_KEY="$(key OPENROUTER_API_KEY)" LLM_MODEL=qwen/qwen3-14b
   export LLM_ENABLE_THINKING=0 LLM_PRICE_IN=0.12 LLM_PRICE_OUT=0.24 LLM_BUDGET_USD=${QWEN_BUDGET:-5}
 }
+ntq_env() {  # self-hosted vLLM, no per-token price; LLM_BUDGET_USD stays off
+  export LLM_BASE_URL=https://api.ntq.ai/v1 LLM_API_KEY="$(key NTQ_API_KEY)" LLM_MODEL=nxchat
+  export LLM_ENABLE_THINKING=0 LLM_PRICE_IN=0 LLM_PRICE_OUT=0 LLM_BUDGET_USD=0
+}
+build_env() { case $PROVIDER in ntq) ntq_env ;; openrouter) qwen_env ;; *) echo "unknown PROVIDER $PROVIDER"; exit 2 ;; esac; }
 gpt4o_env() {
   export LLM_BASE_URL=https://api.openai.com/v1 LLM_API_KEY="$(key OPENAI_API_KEY)" LLM_MODEL=gpt-4o
   export LLM_ENABLE_THINKING="" LLM_PRICE_IN=2.5 LLM_PRICE_OUT=10 LLM_BUDGET_USD=${GPT_BUDGET:-45}
@@ -50,11 +60,12 @@ EOF
 for s in $STAGES; do
   case $s in
   build)
-    qwen_env
+    build_env
     mkdir -p out/public_build
     echo "== build $(ls $SPLIT/data | wc -l) public businesses with $LLM_MODEL -> $WORK"
     $PY src/build_semantic.py --split "$SPLIT" --work "$WORK" --jobs "${BUILD_JOBS:-8}" --retry-failed 2>&1 \
       | tee -a out/public_build/build.log | grep -E "ok=|businesses mapped" || true ;;
+  qa_ntq) ntq_env; qa ntq ;;
   qa_qwen) qwen_env; qa qwen ;;
   qa_gpt4o) gpt4o_env; qa gpt4o ;;
   *) echo "unknown stage $s"; exit 2 ;;
