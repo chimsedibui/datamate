@@ -272,7 +272,7 @@ def year_from_text(s: str) -> int | None:
 STATUS_HINTS = [
     ("cancelled", re.compile(r"\b(huy|cancel\w*|khong giao duoc|giao that bai|that bai|failed)\b")),
     ("returned", re.compile(r"\b(tra hang|tra lai|tra ve|hoan tra|hoan hang|doi tra|return\w*|refund\w*)\b")),
-    ("delivering", re.compile(r"\b(dang giao|dang van chuyen|dang gui|dang ship|cho giao|dang xu ly|cho xu ly|"
+    ("delivering", re.compile(r"\b(dang giao|chua giao|dang van chuyen|dang gui|dang ship|cho giao|dang xu ly|cho xu ly|"
                               r"shipping|delivering|pending|processing)\b")),
     ("completed", re.compile(r"\b(thanh cong|hoan thanh|hoan tat|da giao|giao thanh cong|da lay|xong|"
                              r"success\w*|complete\w*|done|delivered)\b")),
