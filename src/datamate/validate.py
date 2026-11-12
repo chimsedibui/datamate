@@ -7,6 +7,8 @@ mapper retry; the report is a human/LLM-readable summary of what was loaded.
 """
 from __future__ import annotations
 
+import re
+
 import numpy as np
 import pandas as pd
 
@@ -46,6 +48,63 @@ def _coalesce_duplicates(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(out, index=df.index)
 
 
+# Export subtotal rows ("Cộng ngày 01/05/2025", "Tổng cộng", "Total:") read as records double every sum.
+_SUBTOTAL = re.compile(r"^(cộng|tổng cộng|tổng số|tổng|total|subtotal|grand total|tong cong|cong ngay|tong ngay)"
+                       r"(\s+(ngày|tháng|tuần|kỳ|năm|ca|tiền|hoá đơn|hóa đơn|đơn|phiếu|ngay|thang|tuan|tien)\b"
+                       r"|\s*[:\-]|\s*\d|\s*$)")  # with diacritics: "Tống" (a surname) must not match "tổng"
+_TXN_TABLES = {"orders", "order_lines", "purchases", "payments", "returns", "stock_moves", "deliveries"}
+
+
+_TXN_ID = {"orders": "order_id", "order_lines": "order_id", "purchases": "purchase_id", "payments": "payment_id",
+           "returns": "return_id", "stock_moves": "move_id", "deliveries": "delivery_id"}
+
+
+def _id_prefix(v) -> str:
+    return re.sub(r"[\d\W_]+", "", str(v)).upper()
+
+
+def _drop_subtotal_rows(df: pd.DataFrame, table: str = "") -> tuple[pd.DataFrame, int]:
+    """Drop rows labelled like a subtotal whose record id is missing or synthesised (prefix unlike the rest).
+    A row with a real id is a real record even if a text cell says 'Tổng ngày …' (seen as a junk customer name)."""
+    mask = pd.Series(False, index=df.index)
+    for c in df.columns:
+        s = df[c]
+        if not (s.dtype == object or pd.api.types.is_string_dtype(s)):
+            continue
+        vals = s.dropna().unique()
+        hits = {v for v in vals if isinstance(v, str) and _SUBTOTAL.match(norm_text(v) or "")}
+        if hits:
+            mask |= s.isin(hits)
+    if not mask.any():
+        return df, 0
+    idc = _TXN_ID.get(table)
+    if idc in df.columns:
+        ids = df[idc]
+        pref = ids[~mask & ids.notna()].map(_id_prefix)
+        common = set(pref.value_counts().index[:3]) if len(pref) else set()
+        real = ids.notna() & ids.map(_id_prefix).isin(common) if common else ids.notna()
+        mask &= ~real
+    mask |= _footer_lines(df)
+    return (df[~mask], int(mask.sum())) if mask.any() else (df, 0)
+
+
+_NOTE = re.compile(r"^(ghi chú|ghi chu|lưu ý|luu y|note|chú thích|chu thich)\b")
+
+
+def _footer_lines(df: pd.DataFrame) -> pd.Series:
+    """Sheet footers ('Cộng' month total, 'Ghi chú: …') read as an item line of the last order (its id was
+    forward-filled): the item name is a total/note label and the line has no quantity and no unit price."""
+    none = pd.Series(False, index=df.index)
+    if "product_name" not in df.columns:
+        return none
+    num = [c for c in ("qty", "qty_base", "unit_price") if c in df.columns]
+    if not num:
+        return none
+    label = df["product_name"].map(lambda v: isinstance(v, str) and bool(
+        _SUBTOTAL.match(norm_text(v) or "") or _NOTE.match(norm_text(v) or "")))
+    return label & df[num].isna().all(axis=1)
+
+
 def sanitize(tables: dict, meta: dict) -> tuple[dict[str, pd.DataFrame], dict]:
     """Repair loader output that is structurally off but unambiguous, instead of failing the attempt.
 
@@ -57,6 +116,7 @@ def sanitize(tables: dict, meta: dict) -> tuple[dict[str, pd.DataFrame], dict]:
     fixes: list[str] = []
     desc = dict(meta.get("extra_desc") or {})
     out: dict[str, pd.DataFrame] = {}
+    footer_orders: set = set()
     for name, df in (tables or {}).items():
         if not isinstance(df, pd.DataFrame):
             continue
@@ -76,6 +136,13 @@ def sanitize(tables: dict, meta: dict) -> tuple[dict[str, pd.DataFrame], dict]:
             if unknown:
                 df = df.drop(columns=unknown)
                 fixes.append(f"{name}: dropped non-schema columns {unknown}")
+        if spec is not None and name in _TXN_TABLES:
+            before = df
+            df, n_sub = _drop_subtotal_rows(df, name)
+            if n_sub:
+                fixes.append(f"{name}: dropped {n_sub} subtotal/total rows (e.g. 'Cộng ngày …', 'Tổng cộng')")
+                if name == "order_lines" and "order_id" in df.columns:
+                    footer_orders |= set(before.loc[~before.index.isin(df.index), "order_id"].dropna())
         if len(df) == 0:
             fixes.append(f"{name}: empty table dropped")
             continue
@@ -83,6 +150,13 @@ def sanitize(tables: dict, meta: dict) -> tuple[dict[str, pd.DataFrame], dict]:
             desc[name] = f"{name[6:].replace('_', ' ')}: columns {list(df.columns)[:12]}"
             fixes.append(f"{name}: extra_desc auto-filled")
         out[name] = df
+    if footer_orders and "orders" in out and "order_lines" in out and "goods_total" in out["orders"]:
+        # the loader summed the dropped total lines into goods_total: recompute it for those orders
+        o, ln = out["orders"].copy(), out["order_lines"]
+        hit = o["order_id"].isin(footer_orders)
+        o.loc[hit, "goods_total"] = o.loc[hit, "order_id"].map(ln.groupby("order_id")["line_amount"].sum())
+        out["orders"] = o
+        fixes.append(f"orders: goods_total recomputed from lines for {int(hit.sum())} orders that had total lines")
     meta["extra_desc"] = desc
     if fixes:
         meta["sanitized"] = fixes
@@ -138,6 +212,64 @@ def repair_tables(tables: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
     return tables
 
 
+def _name_key(v) -> str | None:
+    if not isinstance(v, str):
+        return None
+    return re.sub(r"\s+", " ", fold_text(v) or "").strip() or None
+
+
+def _canon_products(out: dict[str, pd.DataFrame], meta: dict) -> None:
+    """One spelling per product. Exports mix 'Gạo ST25' / 'Gao ST25' / 'GẠO ST25' / 'Gạo  ST25' for the same item, so
+    a filter on one spelling silently loses the other rows. Canonical = the catalog (products.name) spelling, else the
+    variant with diacritics, mixed case, single spaces, most rows. product_id is rewritten too when the loader built
+    it from the name (id == name); real codes (SP0049) are kept."""
+    cols = [(n, "name" if n == "products" else "product_name") for n, df in out.items()
+            if df is not None and ("name" if n == "products" else "product_name") in df.columns]
+    if not cols:
+        return
+    count: dict = {}
+    catalog: set = set()
+    for n, c in cols:
+        for v, k in out[n][c].dropna().astype(str).value_counts().items():
+            count[v] = count.get(v, 0) + int(k)
+            if n == "products":
+                catalog.add(v)
+    groups: dict = {}
+    for v in count:
+        k = _name_key(v)
+        if k:
+            groups.setdefault(k, []).append(v)
+
+    def score(v):
+        return (v in catalog, any(ord(ch) > 127 for ch in v), not v.isupper(), "  " not in v and v == v.strip(),
+                count[v], v)
+
+    canon = {v: max(vs, key=score) for vs in groups.values() if len(vs) > 1 for v in vs}
+    canon = {v: c for v, c in canon.items() if v != c}
+    if not canon:
+        return
+    merged = 0
+    for n, df in list(out.items()):
+        c = "name" if n == "products" else "product_name"
+        hit = df[c].isin(canon.keys()) if c in df else pd.Series(False, index=df.index)
+        # ids built from the name ('Gao ST25') are variants too; real codes never equal a product name
+        hid = df["product_id"].isin(canon.keys()) if "product_id" in df else pd.Series(False, index=df.index)
+        if not (hit.any() or hid.any()):
+            continue
+        df = df.copy()
+        merged += int(hit.sum())
+        if hit.any():
+            df.loc[hit, c] = df.loc[hit, c].map(canon)
+        if hid.any():
+            df.loc[hid, "product_id"] = df.loc[hid, "product_id"].map(canon)
+        if n == "products":
+            df = df.drop_duplicates(subset=["product_id"] if "product_id" in df else [c])
+        elif n == "unit_conversions":
+            df = df.drop_duplicates()
+        out[n] = df.reset_index(drop=True)
+    meta["product_names_merged"] = {"variants": len(canon), "rows": merged}
+
+
 def finalize(tables: dict[str, pd.DataFrame], meta: dict) -> dict[str, pd.DataFrame]:
     for name, df in tables.items():
         if df is not None and df.columns.duplicated().any():
@@ -179,7 +311,24 @@ def finalize(tables: dict[str, pd.DataFrame], meta: dict) -> dict[str, pd.DataFr
         if "is_fee" not in ln:
             ln["is_fee"] = ln["product_name"].map(lambda v: norm_text(v) in ("phí phục vụ",)).astype("boolean")
         out["order_lines"] = ln.reset_index(drop=True)
-    return repair_tables(out)
+    _canon_products(out, meta)
+    return _null_strings(repair_tables(out))
+
+
+_NULL_LITERALS = ("<NA>", "<NaT>", "nan", "NaN", "None", "none", "null", "NULL")
+
+
+def _null_strings(tables: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
+    """Literal 'nan' / '<NA>' text (from astype(str) on nulls) becomes a real null: else notna() keeps walk-in rows."""
+    for name, df in tables.items():
+        if df is None:
+            continue
+        for c in df.columns:
+            if df[c].dtype == object or pd.api.types.is_string_dtype(df[c].dtype):
+                bad = df[c].astype(object).map(lambda v: isinstance(v, str) and v.strip() in _NULL_LITERALS)
+                if bad.any():
+                    df[c] = df[c].astype(object).where(~bad, None)
+    return tables
 
 
 def _pct(x) -> str:

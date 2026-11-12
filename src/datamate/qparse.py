@@ -67,14 +67,16 @@ def resolve_periods(q: str, as_of: pd.Timestamp, cal: pd.DataFrame | None = None
     for m in re.finditer(r"(\d+) ngay (?:gan (?:day|nhat)|qua|vua qua|cuoi)", f):
         n = int(m.group(1))
         add(m, m.group(0), a - pd.Timedelta(days=n - 1), a)
-    for m in re.finditer(r"quy (\d)(?:[/ ](?:nam )?(\d{4}))?", f):
+    for m in re.finditer(r"quys? (\d)(?:[/ ](?:nam )?(\d{4}))?", f):
         qn = int(m.group(1))
         if 1 <= qn <= 4:
             y = int(m.group(2)) if m.group(2) else (a.year if pd.Timestamp(a.year, 3 * qn - 2, 1) <= a else a.year - 1)
             add(m, m.group(0), pd.Timestamp(y, 3 * qn - 2, 1), _month_end(y, 3 * qn))
+    named_months: list[pd.Timestamp] = []  # explicit months: 'tháng trước' in the same question is relative to them
     for m in re.finditer(r"thangs? (\d{1,2})(?:\s*[/-]\s*|\s+nams?\s+|\s+)(\d{4})", f):
         mo, y = int(m.group(1)), int(m.group(2))
         if 1 <= mo <= 12:
+            named_months.append(pd.Timestamp(y, mo, 1))
             add(m, m.group(0), pd.Timestamp(y, mo, 1), _month_end(y, mo))
     for m in re.finditer(r"(?:(den het|tinh den|cuoi|het) )?(?:ngay )?(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})", f):
         try:
@@ -91,6 +93,8 @@ def resolve_periods(q: str, as_of: pd.Timestamp, cal: pd.DataFrame | None = None
         mo = int(m.group(1))
         if 1 <= mo <= 12:
             y = _year_for(mo, a)
+            if not any(u0 <= m.start() < u1 for u0, u1 in used):
+                named_months.append(pd.Timestamp(y, mo, 1))
             add(m, m.group(0) + " (không ghi năm)", pd.Timestamp(y, mo, 1), _month_end(y, mo))
     for m in re.finditer(r"ngay (\d{1,2})[/-](\d{1,2})(?![\d/])", f):
         try:
@@ -103,6 +107,12 @@ def resolve_periods(q: str, as_of: pd.Timestamp, cal: pd.DataFrame | None = None
         y = int(m.group(1))
         add(m, m.group(0), pd.Timestamp(y, 1, 1), pd.Timestamp(y, 12, 31))
 
+    def _prev_month():
+        # "doanh thu tháng 2/2025 so với tháng trước (đó)" -> 1/2025, not the month before today
+        anchor = min(named_months) if named_months and not re.search(r"\bthang nay\b", f) else a.replace(day=1)
+        start = anchor - pd.offsets.MonthBegin(1)
+        return start, anchor - pd.Timedelta(days=1)
+
     rel = [
         (r"(?:tinh den|den het|cuoi ngay|het) (?:ngay )?hom nay", None),
         (r"hom nay|ngay hom nay|hnay", lambda: (a, a)),
@@ -112,8 +122,7 @@ def resolve_periods(q: str, as_of: pd.Timestamp, cal: pd.DataFrame | None = None
         (r"tuan (?:truoc|roi|vua roi|qua)", lambda: (a - pd.Timedelta(days=a.weekday() + 7),
                                                      a - pd.Timedelta(days=a.weekday() + 1))),
         (r"thang nay", lambda: (a.replace(day=1), a)),
-        (r"thang (?:truoc|roi|vua roi|qua)", lambda: ((a.replace(day=1) - pd.offsets.MonthBegin(1)),
-                                                      a.replace(day=1) - pd.Timedelta(days=1))),
+        (r"(?:thang|th) (?:lien )?(?:truoc|trc|roi|vua roi|qua)", _prev_month),
         (r"tu dau nam|nam nay", lambda: (pd.Timestamp(a.year, 1, 1), a)),
         (r"nam (?:ngoai|truoc|roi)", lambda: (pd.Timestamp(a.year - 1, 1, 1), pd.Timestamp(a.year - 1, 12, 31))),
         (r"quy nay", lambda: (pd.Timestamp(a.year, 3 * ((a.month - 1) // 3) + 1, 1), a)),
@@ -128,7 +137,7 @@ def resolve_periods(q: str, as_of: pd.Timestamp, cal: pd.DataFrame | None = None
                 continue
             s, e = fn()
             add(m, m.group(0), s, e)
-    if re.search(r"\bthang nay\b", f) and re.search(r"thang (?:truoc|roi)", f):
+    if re.search(r"\bthang nay\b", f) and re.search(r"\b(?:thang|th) (?:lien )?(?:truoc|trc|roi)\b", f):
         prev_start = a.replace(day=1) - pd.offsets.MonthBegin(1)
         prev_end = min(prev_start + pd.Timedelta(days=a.day - 1), a.replace(day=1) - pd.Timedelta(days=1))
         out.append(("tháng trước, cùng số ngày với tháng này (dùng khi so sánh tháng này với tháng trước)",
@@ -159,7 +168,7 @@ def resolve_periods(q: str, as_of: pd.Timestamp, cal: pd.DataFrame | None = None
 
 
 def _tokens(s: str) -> list[str]:
-    return [w for w in re.split(r"[^a-z0-9]+", fold_text(s)) if w]
+    return [w for w in re.split(r"[^a-z0-9]+", fold_text(s) or "") if w]
 
 
 ENTITY_COLUMNS = [
@@ -251,7 +260,10 @@ def normalize_question(q: str) -> str:
     return _GLOSS_RX.sub(lambda m: GLOSSARY[m.group(1).lower()], q)
 
 
-_UNITS = r"kg|m3|m2|lon|chai|thung|hop|goi|vien|tuyp|ly|coc|to|dia|phan|cai|chiec|cay|bao|tui|lo|vi|loc|ket|bo|cuon|met|lit"
+_UNITS = r"kg|m3|m2|lon|chai|thung|hop|goi|vien|tuyp|ly|coc|to|dia|phan|cai|chiec|cay|bao|tui|lo|vi|loc|ket|bo|cuon|met|lit|binh|tam|hu|can|soi|thanh|chuc|xap|ram|ong|day|thau|xe|khoi|tan"
+
+
+_SUM_ALL_RX = re.compile(r"cong (moi|tat ca|het|ca cac|lai)|cong cac mon|tong cong cac")
 
 
 def helper_hints(q: str, tables: dict) -> list[str]:
@@ -275,20 +287,39 @@ def helper_hints(q: str, tables: dict) -> list[str]:
     if m:
         u = m.group(1) or m.group(2)
         src = "purchases rows (nhập)" if "nhap" in f else "sales rows"
-        out.append(f"average price per {u} -> avg_price(<{src} of the item and period>, '{u}').")
+        out.append(f"average price per {u} -> rows = <{src}: the item (exact name/id) in the period, not cancelled>; "
+                   f"answer = round(avg_price(rows, '{u}')). "
+                   "It already does total money / quantity converted to that unit; do not recompute by hand.")
     elif re.search(rf"\b(?:gia|don gia)\b.*\bmot ({_UNITS})\b", f):
         u = re.search(rf"\b(?:gia|don gia)\b.*\bmot ({_UNITS})\b", f).group(1)
         out.append(f"price of one {u} -> unit_price of the item's sale lines on that day/period (lines in unit {u}; "
                    f"if several prices, avg_price(rows, '{u}')). Not the revenue.")
     elif (m := re.search(rf"\b(?:bao nhieu|bao nhiu|bn|bnhiu|may|tong cong|so|soos)\s+({_UNITS})\b", f)) \
-            and not debt and not re.search(r"\bkho\b|\bton\b|con lai|con bao", f):
+            and not debt and not re.search(r"\bkho\b|\bton\b|con lai|con bao|con may|chan\b.*\ble\b", f):
         u = m.group(1)
         out.append(f"quantity in {u} -> qty_in(sales(start, end), '{u}').sum() (only products whose base unit is "
                    f"{u}, lines sold in bigger units included); filter the item first if one is named.")
+    if re.search(r"\bton\b|trong kho|\bkho\b|het hang|con may .*\bchan\b|\bchan\b.*\ble\b", f) and not debt \
+            and not re.search(r"\bnhap\b|het han|\blo\b", f):
+        out.append("stock -> s = stock_at(day) (end of that day; default today), filter the item with match() on "
+                   "s.product_name; base units = qty_base. Answer one number in the asked unit: qty_base / unit_factor(pid, '<asked unit>') "
+                   "(qty_base itself when the asked unit is the base unit). Only when the question says "
+                   "'mấy <đv lớn> chẵn, mấy <đv nhỏ> lẻ' -> list [int(x) for x in divmod(qty_base, "
+                   "unit_factor(pid, '<đv lớn>'))].")
+    if re.search(r"\b(?:tra|thanh toan) (?:bang|qua)\b", f):
+        out.append("'đơn trả bằng / thanh toán bằng X' = PAYMENT METHOD X (orders.payment_method), not returned orders; "
+                   "keep the normal revenue status filter.")
+    if _SUM_ALL_RX.search(f):
+        out.append("'cộng mỗi món / cộng tất cả' -> ONE number summed over the items, not a per-item table; keep "
+                   "every other filter of the question (size, group, unit...).")
+    if (m := re.search(r"\bsize ([sml]|xl)\b", f)):
+        z = m.group(1).upper()
+        out.append(f"size {z} -> only items whose product_name has the size marker ({z}) / size {z} "
+                   f"(e.g. rows[rows.product_name.str.contains(r'\\(\\s*{z}\\s*\\)|\\bsize {z}\\b', case=False)]).")
     if re.search(r"\bkhach\b", f) and re.search(r"nhat|top|xep hang|nhieu nhat|cao nhat|bao nhieu khach|so khach", f) \
             and not debt and "orders" in tables:
         out.append("customers -> with_customer(rows): group/count by cust_key (walk-in = NaN, excluded), report "
-                   "cust_name.")
+                   "cust_name. Ranking -> top_customers(rows, 'line_amount' | 'orders', n).cust_name.tolist().")
     return out
 
 

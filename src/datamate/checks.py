@@ -33,6 +33,7 @@ from .schema import ORDER_STATUS, PAYMENT_METHOD
 _SKIP_VALUES = set(ORDER_STATUS) | set(PAYMENT_METHOD)
 _DATE_RX = re.compile(r"^\d{4}-\d{1,2}(-\d{1,2})?([ T].*)?$|^\d{1,2}[/-]\d{1,2}([/-]\d{2,4})?$")
 _REGEX_CHARS = re.compile(r"[|()\[\]^$*+?\\{}]")
+_CHANGE_RX = re.compile(r"tang|giam|thay doi|so voi|so vs|hon hay kem|nhieu hay it|cao hay thap|chenh|\bhon\b|\bkem\b")  # growth / diff % may be <0 or >100
 _SHARE_RX = re.compile(r"chiem|ti trong|ty trong|ti le|ty le|bao nhieu phan tram|bao nhieu %|% (doanh thu|tong)")
 _UNANS_DATA_RX = re.compile(r"no (valid )?(data|orders|sales|records|rows)|not (found|available|present)|outside|"
                             r"does not (contain|include|cover)|khong co du lieu|no .* in ", re.I)
@@ -89,6 +90,9 @@ def _column_and_mode(node: ast.AST) -> tuple[str | None, str]:
         elif isinstance(n, ast.Attribute):
             if n.attr in ("lower", "casefold") and mode == "exact":
                 mode = "lower"
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr in ("map", "apply", "replace") \
+                and not (n.args and isinstance(n.args[0], ast.Name) and n.args[0].id in ("fold_text", "norm_text", "str")):
+            return None, mode  # col.map(lookup) compares the looked-up value, not the column itself
     if len(cols) != 1 and isinstance(node, ast.Attribute) and not isinstance(node.value, ast.Attribute):
         cols = {node.attr}
     return (next(iter(cols)) if len(cols) == 1 else None), mode
@@ -331,10 +335,36 @@ def expected_count(question: str) -> int | None:
     return n if n and 1 < n <= 20 else None
 
 
+# A percentage is asked ('bao nhiêu %', 'phần trăm', 'tỉ trọng', 'chiếm'); a '%' right after a digit is part of a
+# product name ('Efticol 0,9%', 'kem 5%') and does not count.
+_ASKS_PCT = re.compile(r"phan tr|ti trong|ty trong|ti le|ty le|\bchiem\b|(?<![\d.,])%")
+
+
+def asks_percent(question: str) -> bool:
+    return bool(_ASKS_PCT.search(fold_text(question) or ""))
+
+
+_COUNT_RX = re.compile(r"\b(so|bao nhieu|bnhiu|bn|may) (don|khach|lan|hoa don)\b")
+_SUM_ALL_RX = re.compile(r"cong (moi|tat ca|het|ca cac|lai)|cong cac mon|tong cong cac")
+
+
 def coerce(question: str, pred: dict) -> dict:
-    """A table returned where the question asks a plain list of numbers -> list of its last numeric column."""
+    """A table returned where the question asks a plain list of numbers -> list of its last numeric column.
+    A plain number returned where the question asks a percentage -> percent (the value is already the percent)."""
     a = pred.get("answer")
     f = fold_text(question) or ""
+    if pred.get("type") == "string" and isinstance(a, str) and re.fullmatch(r"\d{4}-\d{2}(-\d{2})?", a.strip()):
+        return {"type": "date", "answer": a.strip()}  # a month / day answer is a date
+    if pred.get("type") == "number" and isinstance(a, (int, float)) and not isinstance(a, bool) \
+            and asks_percent(question):
+        return {"type": "percent", "answer": round(float(a), 2)}
+    if pred.get("type") == "table" and isinstance(a, dict) and a.get("rows") and _SUM_ALL_RX.search(f):
+        last = [r[-1] for r in a["rows"] if r]
+        if last and all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in last):
+            return {"type": "number", "answer": sum(last)}  # 'cộng mỗi món' = one total over all items
+    if pred.get("type") == "list" and isinstance(a, list) and a and all(isinstance(x, list) and len(x) >= 2 for x in a) \
+            and len({len(x) for x in a}) == 1:
+        return {"type": "table", "answer": {"columns": [f"c{i}" for i in range(len(a[0]))], "rows": a}}
     if pred.get("type") == "table" and isinstance(a, dict) and a.get("rows") \
             and re.search(r"\b(\d+|hai|ba|bon|nam) so\b|theo thu tu|lan luot", f):
         last = [r[-1] for r in a["rows"] if r]
@@ -360,6 +390,11 @@ def review(question: str, pred: dict, issues: list[ValueIssue], tables: dict,
                      + "\n".join(i.describe() for i in issues)
                      + "\nUse the exact stored value that means the same thing (same item, brand, size), "
                        "or the right column. If none of them is the asked item, return unanswerable.")
+    if pred.get("type") == "number" and isinstance(pred.get("answer"), float) \
+            and pred["answer"] != int(pred["answer"]) and _COUNT_RX.search(fold_text(question) or "") \
+            and not asks_percent(question):
+        probs.append(f"The question asks HOW MANY (a count), but the answer {pred['answer']} is not a whole number. "
+                     "Return the count itself (len / nunique), not a rate or average.")
     if _is_zero(pred) and not issues:
         probs.append("solve() returned 0 / empty. That is rarely the true answer: check that every filter value "
                      "really occurs in its column (print-free: compare against the values listed in the tables "
@@ -378,7 +413,7 @@ def review(question: str, pred: dict, issues: list[ValueIssue], tables: dict,
                      "missing names are not ranked objects: drop null names before ranking (dropna) and take the "
                      "next ones.")
     if pred.get("type") == "percent" and isinstance(a, (int, float)) and _SHARE_RX.search(f) \
-            and not re.search(r"tang|giam|thay doi|so voi", f) and not 0 <= a <= 100:
+            and not _CHANGE_RX.search(f) and not 0 <= a <= 100:
         probs.append(f"The question asks a share of a total, but the result is {a}% (must be within 0..100). "
                      "The part must be a subset of the whole computed over the same period and filters.")
     if pred.get("type") == "unanswerable" and _UNANS_DATA_RX.search(str(pred.get("reason", ""))):
@@ -407,10 +442,10 @@ _NEEDS = [
      "purchases", lambda t: _has(t, "purchases")),
     (r"san pham|mat hang|\bmon\b|ten hang|ban chay|\bsku\b|nhom hang|loai hang|hang nao|mon nao|\bmat hang\b",
      "product lines", lambda t: _has(t, "order_lines", "product_name")),
-    (r"cong no|con no|\bno\b|tra gop|ghi no|chua tra|chua thanh toan|\bgop\b",
+    (r"cong no|con no|\bno\b|tra gop|ghi no|chua tra|chua thanh toan|(?<!dong )\bgop (thang|ky)",
      "debt / payments", lambda t: _has(t, "payments") or _has(t, "orders", "debt_remaining")
      or _has(t, "orders", "paid_amount") or _has(t, "orders", "payment_method")),
-    (r"nhan vien|thu ngan|nguoi ban|\bnv\b|\btho\b",
+    (r"nhan vien|thu ngan|nguoi ban|\bnv\b|\btho (nao|gioi|lanh nghe|chinh)",
      "employee", lambda t: _has(t, "orders", "employee")),
     (r"\bkenh\b|online|shopee|lazada|tiktok|zalo|facebook|tai quay|san tmdt|\bgrab\b|tren san|san thuong mai",
      "sales channel", lambda t: _has(t, "orders", "channel")),
@@ -418,7 +453,7 @@ _NEEDS = [
      "branch", lambda t: _has(t, "orders", "branch")),
     (r"tien mat|chuyen khoan|vi dien tu|momo|quet the|phuong thuc thanh toan|hinh thuc thanh toan|\bcod\b",
      "payment method", lambda t: _has(t, "orders", "payment_method") or _has(t, "payments", "method")),
-    (r"loi nhuan|\blai\b|gia von|\blo von\b|\blo\b",
+    (r"loi nhuan|lai gop|lai rong|tien lai|\blai (bao|may|duoc|it|nhieu|cao|thap)|gia von|\blo von\b|\bbi lo\b|\blo (bao|may|nhieu)",
      "cost", lambda t: _has(t, "order_lines", "cost_per_unit") or _has(t, "products", "cost_price")
      or _has(t, "purchases")),
 ]
@@ -458,6 +493,6 @@ def gate(pred: dict, source: str, unresolved: list[ValueIssue], question: str) -
     a = pred.get("answer")
     f = fold_text(question) or ""
     if pred.get("type") == "percent" and isinstance(a, (int, float)) and _SHARE_RX.search(f) \
-            and not re.search(r"tang|giam|thay doi|so voi", f) and not 0 <= a <= 100:
+            and not _CHANGE_RX.search(f) and not 0 <= a <= 100:
         return f"share out of range ({a}%)"
     return None

@@ -87,12 +87,19 @@ def tet_window(lunar_year: int, cal: pd.DataFrame) -> tuple[pd.Timestamp, pd.Tim
 
 def match(values, query: str, k: int = 5) -> list:
     """Best fuzzy matches of `query` among `values` (diacritics/case-insensitive). Exact folded hits first."""
+    if not isinstance(query, str) and (isinstance(values, str) or (not isinstance(values, pd.Series)
+                                                                     and len(list(values)) == 1)):
+        values, query = query, values  # tolerate match([name], choices) / match(name, choices)
+    if not isinstance(query, str):
+        query = list(query)[0]
     vals = pd.Series(pd.unique(pd.Series(list(values)).dropna().astype(str)))
     if vals.empty:
         return []
     fq = fold_text(query)
     folded = vals.map(fold_text)
     exact = vals[folded == fq].tolist()
+    if exact:
+        return exact[:k]  # an exact (folded) hit is the answer; near names would leak into isin() filters
     contains = vals[folded.str.contains(fq, regex=False)].tolist()
     fuzzy = difflib.get_close_matches(fq, folded.tolist(), n=k, cutoff=0.5)
     fuzzy_vals = [vals[folded == f].iloc[0] for f in fuzzy]
@@ -183,6 +190,96 @@ def qty_in(t: dict, df: pd.DataFrame, unit: str, convert: bool = False) -> pd.Se
     return pd.Series(out, index=df.index, dtype=float)
 
 
+def unit_factor(t: dict, product, unit: str) -> float | None:
+    """Base units in one `unit` of a product (id or name): unit_factor('SP0003', 'hộp') -> 30.0; None if unknown."""
+    factors, base, _ = _unit_factors(t)
+    f = factors.get(str(product), {})
+    u = fold_text(unit)
+    if u in f:
+        return f[u]
+    if fold_text(base.get(str(product))) == u:
+        return 1.0
+    near = {v for k, v in f.items() if k.split()[0] == u or k.startswith(u + " ")}  # 'cuộn' ~ 'cuộn 10m'
+    return near.pop() if len(near) == 1 else None
+
+
+def _not_cancelled_lines(t: dict) -> pd.DataFrame:
+    o = t["orders"]
+    o = o[o["status"] != "cancelled"] if "status" in o else o
+    return t["order_lines"].merge(o[["order_id", "order_date"]], on="order_id", how="inner")
+
+
+def stock_at(t: dict, at=None, as_of=None) -> pd.DataFrame:
+    """Stock (base unit) of every product at the END of day `at` (default: today) -> DataFrame[product_id,
+    product_name, base_unit, qty_base]. Rulebook: everything from the start of data up to that day.
+    Sources, first available: stock ledger `stock_moves` (balance after the last movement), snapshot table `stock`
+    (rolled back by the sales and receipts after `at` when the snapshot is later), lots (`batches` in - `batch_sales` out + returned), receipts minus
+    sales. Sales leaving stock = lines of every order except cancelled ones (a returned order's goods left; only an
+    explicit returned quantity comes back)."""
+    d = pd.Timestamp(at if at is not None else as_of).normalize()
+    end = d + pd.Timedelta(days=1)
+    p = t.get("products")
+    qty: pd.Series | None = None
+    st, sm, ba, bs, pu = (t.get(k) for k in ("stock", "stock_moves", "batches", "batch_sales", "purchases"))
+
+    def _date(df, c):
+        return pd.to_datetime(df[c], errors="coerce")
+
+    if sm is not None and {"product_id", "moved_at", "qty_base"} <= set(sm.columns):
+        key = "product_id"
+        m = sm[_date(sm, "moved_at") < end]
+        if "balance_after" in m and m["balance_after"].notna().mean() > 0.9:
+            qty = m.sort_values("moved_at", kind="mergesort").groupby(key)["balance_after"].last()
+        else:
+            qty = m.groupby(key)["qty_base"].sum()
+    elif st is not None and "qty_base" in st and st["qty_base"].notna().any():
+        key = "product_id" if "product_id" in st and st["product_id"].notna().any() else "product_name"
+        snap_day = _date(st, "as_of_date").max() if "as_of_date" in st else pd.NaT
+        if pd.isna(snap_day) and "orders" in t:
+            snap_day = pd.to_datetime(t["orders"]["order_date"]).max()
+        qty = st.groupby(key)["qty_base"].sum()
+        if pd.notna(snap_day) and d < snap_day.normalize() and "order_lines" in t:
+            ln = _not_cancelled_lines(t)
+            later = ln[(_date(ln, "order_date") >= end) & (_date(ln, "order_date") <= snap_day)]
+            qty = qty.add(later.groupby(key)["qty_base"].sum(), fill_value=0)
+            if pu is not None and {"receipt_date", "qty_base", key} <= set(pu.columns):
+                pu2 = pu[pu["status"] != "cancelled"] if "status" in pu else pu
+                rec = pu2[(_date(pu2, "receipt_date") >= end) & (_date(pu2, "receipt_date") <= snap_day)]
+                qty = qty.sub(rec.groupby(key)["qty_base"].sum(), fill_value=0)
+    elif ba is not None and bs is not None and {"product_id", "qty_in_base"} <= set(ba.columns):
+        key = "product_id"
+        b = ba[_date(ba, "received_date") < end] if "received_date" in ba else ba
+        qty = b.groupby(key)["qty_in_base"].sum()
+        o = t["orders"]
+        o = o[(o["status"] != "cancelled") & (_date(o, "order_date") < end)] if "status" in o else \
+            o[_date(o, "order_date") < end]
+        x = bs[bs["order_id"].isin(o["order_id"])]
+        if "product_id" not in x and "batch_id" in x:
+            x = x.merge(ba[["batch_id", "product_id"]], on="batch_id", how="left")
+        out = x["qty_base"] - x.get("qty_returned_base", pd.Series(0.0, index=x.index)).fillna(0)
+        qty = qty.sub(out.groupby(x["product_id"]).sum(), fill_value=0)
+    elif pu is not None and "order_lines" in t and {"receipt_date", "qty_base"} <= set(pu.columns):
+        key = "product_id" if "product_id" in pu and pu["product_id"].notna().any() else "product_name"
+        pu2 = pu[pu["status"] != "cancelled"] if "status" in pu else pu
+        qty = pu2[_date(pu2, "receipt_date") < end].groupby(key)["qty_base"].sum()
+        ln = _not_cancelled_lines(t)
+        qty = qty.sub(ln[_date(ln, "order_date") < end].groupby(key)["qty_base"].sum(), fill_value=0)
+    if qty is None:
+        raise ValueError("no stock data (no stock snapshot, stock ledger, lots or receipts): unanswerable")
+    res = qty.rename("qty_base").reset_index()
+    key = res.columns[0]
+    if p is not None and "product_id" in p:
+        cols = [c for c in ("product_id", "name", "base_unit") if c in p]
+        pm = p[cols].drop_duplicates("product_id").rename(columns={"name": "product_name"})
+        on = "product_id" if key == "product_id" else "product_name"
+        if on in pm:
+            res = res.merge(pm, on=on, how="left")
+    for c in ("product_id", "product_name", "base_unit"):
+        if c not in res:
+            res[c] = None
+    return res[["product_id", "product_name", "base_unit", "qty_base"]]
+
+
 def avg_price(t: dict, df: pd.DataFrame, unit: str) -> float | None:
     """Average price per `unit` over the rows of `df`: money / qty_in(df, unit), on convertible rows only.
     Money = line_amount for sales rows, qty*unit_cost for purchase rows (amount may be a receipt total)."""
@@ -243,11 +340,25 @@ def with_customer(t: dict, df: pd.DataFrame) -> pd.DataFrame:
         df["cust_key"], df["cust_name"] = None, None
         return df
     key = df[col] if col == "customer_id" else df[col].map(_name_key)
-    df["cust_key"] = key
     df["cust_name"] = key.map(names).where(key.notna(), None)
     if col == "customer_name":
         df["cust_name"] = df["cust_name"].fillna(df[col])
+        key = df["cust_name"].where(key.notna(), None)  # name-keyed shop: the key IS the display name
+    df["cust_key"] = key
     return df
+
+
+def top_customers(t: dict, df: pd.DataFrame, value: str = "line_amount", n: int | None = None,
+                  ascending: bool = False) -> pd.DataFrame:
+    """Rank customers (walk-in excluded) of rows `df` by sum of `value`, or by order count with value='orders'.
+    Returns DataFrame[cust_key, cust_name, <value>] sorted best first (ties by cust_key)."""
+    d = df if "cust_key" in df else with_customer(t, df)
+    d = d[d["cust_key"].notna()]
+    agg = ("order_id", "nunique") if value == "orders" else (value, "sum")
+    g = d.groupby("cust_key").agg(**{value: agg, "cust_name": ("cust_name", "first")}).reset_index()
+    g = g.sort_values([value, "cust_key"], ascending=[ascending, True], kind="mergesort")
+    g = g[["cust_key", "cust_name", value]].reset_index(drop=True)
+    return g.head(n) if n else g
 
 
 _CREDIT_METHODS = ("debt", "installment")  # trả góp is a credit order (public rulebook, phone shops)

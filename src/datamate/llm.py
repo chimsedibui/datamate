@@ -20,16 +20,49 @@ import hashlib
 import json
 import os
 import re
+import sys
 import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from types import SimpleNamespace
 
 from dotenv import load_dotenv
 from openai import APIConnectionError, APIStatusError, OpenAI, RateLimitError
 
 ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(ROOT / ".env")
+
+
+def _create(client: OpenAI, req: dict):
+    """chat.completions.create, streamed and reassembled into a non-streaming-shaped response.
+
+    Long non-streamed generations (thinking builds run minutes) get cut by idle timeouts on some hosted
+    gateways, which leaves the request hanging until the client timeout and retrying forever; streaming keeps
+    bytes flowing. `req` itself (the cache key) is unchanged."""
+    if os.environ.get("LLM_STREAM", "1") == "0":
+        return client.chat.completions.create(**req)
+    content, reasoning, usage = [], [], None
+    for ch in client.chat.completions.create(**req, stream=True, stream_options={"include_usage": True}):
+        if getattr(ch, "usage", None):
+            usage = ch.usage
+        for c in ch.choices or []:
+            d = c.delta
+            if d is None:
+                continue
+            if d.content:
+                content.append(d.content)
+            r = getattr(d, "reasoning_content", None) or getattr(d, "reasoning", None)
+            if r is None and getattr(d, "model_extra", None):
+                r = d.model_extra.get("reasoning_content") or d.model_extra.get("reasoning")
+            if r:
+                reasoning.append(r)
+    msg = SimpleNamespace(content="".join(content), reasoning_content="".join(reasoning) or None)
+    return SimpleNamespace(choices=[SimpleNamespace(message=msg)], usage=usage)
+
+
+def _reasoning(msg) -> str | None:
+    return getattr(msg, "reasoning_content", None) or getattr(msg, "reasoning", None)
 
 
 class BudgetExceeded(RuntimeError):
@@ -116,14 +149,16 @@ class LLM:
         r, served_by = None, self.model
         for attempt in range(4 if self.fallback else 8):
             try:
-                r = self.client.chat.completions.create(**req)
-                if r.choices and r.choices[0].message.content:
-                    break
+                r = _create(self.client, req)
+                if r.choices and (r.choices[0].message.content or _reasoning(r.choices[0].message)):
+                    break  # reasoning only = thinking used the whole output budget: the caller decides what to do
                 r = None  # free endpoints sometimes return an empty completion
             except (RateLimitError, APIConnectionError) as e:
                 if "insufficient_quota" in str(e) or "credit" in str(e).lower():
                     raise
+                print(f"[llm] attempt {attempt}: {type(e).__name__}: {str(e)[:200]}", file=sys.stderr, flush=True)
             except APIStatusError as e:
+                print(f"[llm] attempt {attempt}: HTTP {e.status_code}: {str(e)[:200]}", file=sys.stderr, flush=True)
                 # vLLM rejects prompt + max_tokens > context; our token estimate can be short (Vietnamese, code),
                 # so retry once with the output budget that actually fits.
                 m = _CTX_ERR.search(str(e))
@@ -139,7 +174,7 @@ class LLM:
             served_by, client = self.fallback
             for attempt in range(6):
                 try:
-                    r = client.chat.completions.create(**{**req, "model": served_by})
+                    r = _create(client, {**req, "model": served_by})
                     if r.choices and r.choices[0].message.content:
                         break
                     r = None

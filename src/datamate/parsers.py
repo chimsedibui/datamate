@@ -26,8 +26,13 @@ import pandas as pd
 _EXCEL_EPOCH = datetime(1899, 12, 30)
 
 
+_NULL_STR = {"<na>", "<nat>"}  # str() of a pandas null; never real text ("nan"/"None" may be)
+
+
 def norm_text(x):
-    if x is None or (isinstance(x, float) and math.isnan(x)):
+    if x is None or x is pd.NA or x is pd.NaT or (isinstance(x, float) and math.isnan(x)):
+        return None
+    if isinstance(x, str) and x.strip().lower() in _NULL_STR:
         return None
     s = unicodedata.normalize("NFC", str(x)).strip().lower()
     return re.sub(r"\s+", " ", s)
@@ -56,7 +61,7 @@ _MULT = [
     (re.compile(r"(tri[eệ]u|tr|m)$"), 1_000_000),
     (re.compile(r"(ngh[iì]n|ng[aà]n|k)$"), 1_000),
 ]
-_INFIX_MULT = re.compile(r"^(\d+)\s*(tri[eệ]u|tr|m|ngh[iì]n|ng[aà]n|k)\s*(\d+)$")
+_INFIX_MULT = re.compile(r"^(\d+)(?:\s*(tri[eệ]u|tr|ngh[iì]n|ng[aà]n|k)\s*|(m))(\d+)$")  # '3 m3' is a volume, not 3.3 triệu
 
 
 def _num_core(s: str, scaled: bool = False) -> float | None:
@@ -105,7 +110,8 @@ def _money_one(x):
     s = s.replace("₫", "").strip()
     m = _INFIX_MULT.match(s)  # '1tr090' = 1.090 triệu, '1k5' = 1.5 nghìn
     if m:
-        whole, unit, frac = m.groups()
+        whole, unit, unit_m, frac = m.groups()
+        unit = unit or unit_m
         mult = 1_000_000 if unit[0] in "tm" else 1_000
         return round((int(whole) + int(frac) / 10 ** len(frac)) * mult, 6)
     mult = 1
@@ -125,8 +131,25 @@ def parse_money(s):
     return s.map(_money_one).astype(float)
 
 
+_NUM_UNIT = re.compile(r"^([-−]?[\d.,]+)\s*([^\d\s.,].*)$")
+_MONEY_SUFFIX = re.compile(r"^(tri[eệ]u|tr|ngh[iì]n|ng[aà]n|k|vnđ|vnd|đồng|đ|₫)\s*\d*$")
+
+
+def _number_one(x):
+    """Like money, but a trailing non-money unit is dropped: '3 m3' -> 3, '5 m' -> 5, '2 thùng' -> 2."""
+    if not _is_blank(x) and isinstance(x, str):
+        m = _NUM_UNIT.match(norm_text(x) or "")
+        if m and not _MONEY_SUFFIX.match(m.group(2)):
+            v = _num_core(m.group(1))
+            return np.nan if v is None else v
+    return _money_one(x)
+
+
 def parse_number(s):
-    return parse_money(s)
+    """Quantities / factors. Money suffixes still scale ('1tr5'); unit suffixes are dropped."""
+    if not isinstance(s, pd.Series):
+        return _number_one(s)
+    return s.map(_number_one).astype(float)
 
 
 _QTY_RX = re.compile(r"^\s*([-−]?[\d.,]+)\s*(.*)$")
@@ -249,7 +272,10 @@ def year_from_text(s: str) -> int | None:
 STATUS_HINTS = [
     ("cancelled", re.compile(r"\b(huy|cancel\w*|khong giao duoc|giao that bai|that bai|failed)\b")),
     ("returned", re.compile(r"\b(tra hang|tra lai|tra ve|hoan tra|hoan hang|doi tra|return\w*|refund\w*)\b")),
-    ("delivering", re.compile(r"\b(dang giao|dang van chuyen|dang gui|dang ship|cho giao|shipping|delivering)\b")),
+    ("delivering", re.compile(r"\b(dang giao|dang van chuyen|dang gui|dang ship|cho giao|dang xu ly|cho xu ly|"
+                              r"shipping|delivering|pending|processing)\b")),
+    ("completed", re.compile(r"\b(thanh cong|hoan thanh|hoan tat|da giao|giao thanh cong|da lay|xong|"
+                             r"success\w*|complete\w*|done|delivered)\b")),
 ]
 
 
@@ -267,7 +293,8 @@ def status_hint(label):
 def map_status(raw, mapping=None, default=None):
     """Map raw status labels: keyword hints first, then `mapping` (label -> status, matched on norm_text),
     else `default` (None keeps unknown labels null so validation reports them).
-    'completed' labels ('xong', 'ok', 'đã lấy'...) have no keyword and must be listed in `mapping`."""
+    Common 'completed' labels ('thành công', 'hoàn thành', 'đã lấy', 'xong'...) are keywords too; others ('ok')
+    must be listed in `mapping`."""
     m = {norm_text(k): v for k, v in (mapping or {}).items()}
 
     def one(x):

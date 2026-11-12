@@ -15,6 +15,7 @@ RawStore.read_table are used instead, so the question can still be attempted.
 from __future__ import annotations
 
 import json
+import os
 import multiprocessing as mp
 import re
 import threading
@@ -47,7 +48,7 @@ HELPERS_DOC = """Globals available in your code:
   ALWAYS pass both start and end of the asked period, e.g. sales("2025-11-01", "2025-11-30").
 - month_range(d) / week_range(d)        (start, end) Timestamps; weeks run Monday..Sunday
 - tet_window(lunar_year, cal)           (start, end) of the Tết window of that lunar year
-- match(values, text, k=5)              fuzzy-match a name from the question against data values (best first)
+- match(values, text, k=5)              fuzzy-match a name from the question against data values -> list[str], best first (m[0] is the name)
 - pct(part, whole)                      percentage rounded to 2 decimals
 - qty_in(df, unit, convert=False)      quantity of each row of sales()/order_lines/purchases rows in `unit`. Default =
                                         rulebook "bán được bao nhiêu <đơn vị>": products whose BASE unit is `unit`
@@ -56,9 +57,19 @@ HELPERS_DOC = """Globals available in your code:
                                         `unit` as a larger unit (lon -> thùng). Never merge unit_conversions yourself.
 - avg_price(df, unit)                   average price per `unit` = money / quantity in `unit` (sales: line_amount;
                                         purchases: qty*unit_cost) -> "giá nhập/bán bình quân một thùng"
+- stock_at(at=AS_OF)                     stock in base unit of every product at the END of day `at` (rulebook: all
+                                        movements from the start of data): DataFrame[product_id, product_name,
+                                        base_unit, qty_base]. Use it for every "tồn kho / còn bao nhiêu trong kho /
+                                        hết hàng" question; never rebuild stock from purchases/sales yourself.
+- unit_factor(product_id, unit)         base units in one `unit` ('hộp' -> 30). "mấy hộp chẵn, mấy viên lẻ" ->
+                                        list(divmod(qty_base, unit_factor(pid, 'hộp'))) as ints
 - with_customer(df)                     adds cust_key (one customer per rulebook §3: by code, else by name ignoring
                                         spelling/phone; NaN = walk-in) and cust_name (display name). ALWAYS group,
                                         count and rank customers by cust_key and report cust_name.
+- top_customers(rows, value='line_amount', n=None, ascending=False)
+                                        rank customers of sales()/orders()/debts() rows: DataFrame[cust_key, cust_name,
+                                        value] best first; value='orders' counts orders -> "top 3 khách mua nhiều tiền
+                                        nhất" = top_customers(sales(s, e), 'line_amount', 3).cust_name.tolist()
 - debts(at)                             open debt per order at the end of day `at` (rulebook §4: not cancelled,
                                         returned kept, COD/marketplace excluded, payments up to `at`, remaining > 0):
                                         order_id, order_date, payable, paid, remaining, age_days, cust_key, cust_name.
@@ -300,8 +311,12 @@ class Agent:
             env[n] = getattr(helpers, n)
         env["qty_in"] = lambda df, unit, convert=False: helpers.qty_in(tables, df, unit, convert)
         env["avg_price"] = lambda df, unit: helpers.avg_price(tables, df, unit)
+        env["unit_factor"] = lambda product, unit: helpers.unit_factor(tables, product, unit)
+        env["stock_at"] = lambda at=None: helpers.stock_at(tables, at, as_of)
         if "orders" in tables:
             env["with_customer"] = lambda df: helpers.with_customer(tables, df)
+            env["top_customers"] = lambda df, value="line_amount", n=None, ascending=False: helpers.top_customers(
+                tables, df, value, n, ascending)
             env["debts"] = lambda at=None: helpers.debts(tables, at if at is not None else as_of, as_of)
             env["debt_flow"] = lambda start=None, end=None: helpers.debt_flow(tables, start, end, as_of)
         if "orders" in tables:
@@ -321,13 +336,33 @@ class Agent:
                 "source": source, "final": pred, "attempts": list(attempts), **extra}
 
     def answer(self, q: dict) -> QAResult:
+        """One greedy solve, or self-consistency when DM_SC=K>1: K independent solves (sample 0 greedy, the rest
+        sampled at DM_SC_TEMP), majority vote over the gated answers; fewer than DM_SC_MIN agreeing -> abstain."""
         t0 = time.time()
         tables, desc, source = self._ctx[q["business_id"]]
-        early = checks.gate_source(source) or (checks.gate_tables(q["question"], tables) if source == "semantic"
-                                               else None)
+        missing = checks.gate_tables(q["question"], tables) if source == "semantic" else None
+        early = checks.gate_source(source) or missing
         if early:
-            pred = {"type": "abstain"}
+            # the shop records no such data: rulebook answer is 'unanswerable' (11/11 on train); DM_GATE_UNANS=0 -> abstain
+            pred = {"type": "unanswerable", "reason": missing} if missing and early == missing \
+                and os.environ.get("DM_GATE_UNANS", "1") != "0" else {"type": "abstain"}
             return QAResult(pred, self._log(q, t0, pred, source, gate=early))
+        k = int(os.environ.get("DM_SC") or 1)
+        if k <= 1:
+            return self._solve(q, t0, tables, desc, source, 0)
+        temp = float(os.environ.get("DM_SC_TEMP") or 0.7)
+        need = int(os.environ.get("DM_SC_MIN") or (k // 2 + 1))
+        runs = [self._solve(q, t0, tables, desc, source, i, temperature=0.0 if i == 0 else temp) for i in range(k)]
+        final, votes = vote([r.pred for r in runs], need)
+        log = dict(runs[0].log)
+        log.update(answer=final, final=final, elapsed_ms=int((time.time() - t0) * 1000), sc_votes=votes,
+                   sc_samples=[{"pred": r.pred, "pre_gate": r.log.get("pre_gate"), "gate": r.log.get("gate"),
+                                "code": r.log.get("code")} for r in runs])
+        return QAResult(final, log)
+
+    def _solve(self, q, t0, tables, desc, source, sample: int, temperature: float = 0.0) -> QAResult:
+        think = os.environ.get("DM_QA_THINK", "0") == "1"
+        max_out = int(os.environ.get("DM_QA_MAX_TOKENS") or (16000 if think else 4000))
         as_of = pd.Timestamp(q["as_of_date"])
         pre = qparse.analyze(q["question"], as_of, tables, self.cal)
         periods = qparse.resolve_periods(q["question"], as_of, self.cal)
@@ -346,7 +381,8 @@ class Agent:
         i = 0
         while errors_left > 0:
             i += 1
-            res = self.llm.chat(messages, max_tokens=4000)
+            res = self.llm.chat(messages, temperature=temperature, max_tokens=max_out, seed=42 + sample,
+                                thinking=True if think else None)
             thinking.append(res.reasoning)
             messages.append({"role": "assistant", "content": res.content})
             code = extract_code(res.content)
@@ -402,6 +438,30 @@ class Agent:
         log = self._log(q, t0, final, source, thinking, attempts, gate=reason, pre_gate=pred,
                         value_issues=[it.describe() for it in issues])
         return QAResult(final, log)
+
+
+def _vote_key(pred: dict) -> str:
+    a = pred.get("answer")
+    if pred.get("type") == "unanswerable":
+        return "unanswerable"
+    if isinstance(a, str):
+        a = parsers.fold_text(a) or a
+    if isinstance(a, (int, float)) and not isinstance(a, bool):
+        a = round(float(a), 2)
+    return json.dumps([pred.get("type"), a], ensure_ascii=False, sort_keys=True, default=str)
+
+
+def vote(preds: list[dict], need: int) -> tuple[dict, dict]:
+    """Majority answer among non-abstain predictions; abstain when the top answer has fewer than `need` votes."""
+    groups: dict[str, list[dict]] = {}
+    for p in preds:
+        if p.get("type") != "abstain":
+            groups.setdefault(_vote_key(p), []).append(p)
+    votes = {key: len(v) for key, v in groups.items()}
+    if not groups:
+        return {"type": "abstain"}, votes
+    best = max(groups, key=lambda key: (len(groups[key]), -list(groups).index(key)))
+    return (groups[best][0] if len(groups[best]) >= need else {"type": "abstain"}), votes
 
 
 def load_business(work: str | Path, split: str | Path, biz_id: str) -> tuple[dict, dict, str]:

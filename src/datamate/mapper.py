@@ -23,7 +23,7 @@ import numpy as np
 import pandas as pd
 
 from . import automap, loader_examples, parsers
-from .llm import LLM
+from .llm import LLM, ChatResult
 from .profile import profile_business
 from .rawio import RawStore
 from .schema import CORE_TABLES, schema_prompt
@@ -199,7 +199,124 @@ def run_loader(code: str, store: RawStore):
     tables, meta = ns["load"](store)
     meta = dict(meta or {})
     meta.setdefault("extra_desc", {})
+    try:
+        _enrich_products(tables, store, meta)
+    except Exception:  # best effort: never break a load
+        pass
     return tables, meta
+
+
+_DRUG_COLS = {"active_ingredient": re.compile(r"^hoat chat|^thanh phan( chinh)?$|active ingredient"),
+              "is_prescription": re.compile(r"ke don|prescription|\betc\b")}
+
+
+def _blank_col(s: pd.Series, flag: bool) -> bool:
+    v = s.dropna()
+    return v.empty or (flag and v.astype(str).nunique() <= 1)
+
+
+def _enrich_products(tables: dict, store: RawStore, meta: dict) -> None:
+    """A drug attribute (hoạt chất / kê đơn) the loader left empty or constant, while a raw sheet keyed by the
+    product code or name has it: fill it from that sheet (typical failure: a merge that suffixed the columns)."""
+    p = tables.get("products")
+    if p is None or "product_id" not in p:
+        return
+    todo = [c for c in _DRUG_COLS if c not in p or _blank_col(p[c], c == "is_prescription")]
+    if not todo:
+        return
+    ids = set(p["product_id"].dropna().astype(str).str.strip())
+    names = {parsers.fold_text(x): i for x, i in zip(p.get("name", p["product_id"]), p["product_id"])}
+    for f in store.list_files():
+        try:
+            sheets = store.sheet_names(f) or [None]
+        except Exception:
+            sheets = [None]
+        for sh in sheets:
+            try:
+                raw = store.read_raw(f, sh)
+            except Exception:
+                continue
+            for h in range(min(10, len(raw))):
+                hdr = [parsers.fold_text(x) or "" for x in raw.iloc[h]]
+                hits = {c: j for c in todo for j, x in enumerate(hdr) if _DRUG_COLS[c].search(x)}
+                if not hits:
+                    continue
+                body = raw.iloc[h + 1:]
+                key = None
+                for j in range(raw.shape[1]):
+                    col = body.iloc[:, j].dropna().astype(str).str.strip()
+                    if len(col) and col.isin(ids).mean() > 0.8:
+                        key = col.reindex(body.index)
+                        break
+                    folded = col.map(parsers.fold_text)
+                    if len(col) and folded.isin(names).mean() > 0.8:
+                        key = folded.map(names).reindex(body.index)
+                        break
+                if key is None:
+                    break
+                for c, j in hits.items():
+                    vals = pd.Series(body.iloc[:, j].values, index=key.values)
+                    vals = vals[~vals.index.isna()]
+                    vals = vals[~vals.index.duplicated()]
+                    if c == "is_prescription":
+                        b = vals.map(lambda v: None if v is None or (isinstance(v, float) and v != v) else
+                                     (parsers.fold_text(v) or "") in ("true", "1", "x", "co", "yes", "c", "ke don"))
+                        if b.dropna().nunique() < 2:
+                            continue
+                        new = p["product_id"].astype(str).str.strip().map(b).fillna(False).astype(bool)
+                    else:
+                        v = vals.map(lambda x: None if x is None or (isinstance(x, float) and x != x)
+                                     or not str(x).strip() else str(x).strip())
+                        if v.dropna().empty:
+                            continue
+                        new = p["product_id"].astype(str).str.strip().map(v)
+                    p[c] = new
+                    meta.setdefault("fixes", []).append(f"products.{c} filled from raw {f}/{sh}")
+                    todo.remove(c)
+                break
+            if not todo:
+                tables["products"] = p
+                return
+    tables["products"] = p
+
+
+def loads_lenient(text: str):
+    """First JSON object in `text`; if the output was cut off (max_tokens), keep every complete element and close
+    the open brackets instead of losing the whole object."""
+    i = text.find("{")
+    if i < 0:
+        return None
+    t = text[i:]
+    try:
+        return json.loads(t[:t.rfind("}") + 1])
+    except ValueError:
+        pass
+    stack, in_str, esc, cut = [], False, False, None  # cut = (position after a complete element, stack then)
+    for k, ch in enumerate(t):
+        if in_str:
+            esc = (ch == "\\") and not esc
+            if ch == '"' and not esc:
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch in "{[":
+            stack.append("}" if ch == "{" else "]")
+        elif ch in "}]":
+            if not stack:
+                break
+            stack.pop()
+            if not stack:
+                return json.loads(t[:k + 1])
+            cut = (k + 1, list(stack))
+        elif ch == "," and stack:
+            cut = (k, list(stack))
+    if cut is None:
+        return None
+    try:
+        return json.loads(t[:cut[0]].rstrip().rstrip(",") + "".join(reversed(cut[1])))
+    except ValueError:
+        return None
 
 
 class Mapper:
@@ -219,16 +336,31 @@ class Mapper:
                   '  "industry": short label,\n'
                   '  "core_entities": list of what is sold/recorded (orders, products, customers, debts, stock...),\n'
                   '  "units": list of {"product_or_group": str, "base_unit": str, "larger_units": {unit: factor}} '
-                  "stated or evident in the data (only what is written; empty list if none),\n"
+                  "stated or evident in the data (only what is written; empty list if none). At most 12 entries: "
+                  "one entry per product GROUP sharing the same conversion (e.g. \"gia vị gói\"), never one per "
+                  "product,\n"
                   '  "quirks": list of short notes that matter for mapping (status labels, money formats, split files, '
                   "header rows, walk-in markers, debt recording)\n\n" + profile[:20000])
         try:
-            res = self.llm.chat([{"role": "user", "content": prompt}], max_tokens=1500, thinking=False)
-            m = re.search(r"\{.*\}", res.content, flags=re.S)
-            d = json.loads(m.group(0)) if m else None
+            res = self.llm.chat([{"role": "user", "content": prompt}], max_tokens=3000, thinking=False)
+            d = loads_lenient(res.content)
             return d if isinstance(d, dict) else None
         except Exception:  # noqa: BLE001
             return None
+
+    def _salvage(self, call: list[dict], res, est_prompt: int, attempt: int):
+        """Thinking used the whole output budget before any code (common with long profiles): instead of losing
+        the attempt, hand the tail of that reasoning back without thinking and ask for the code directly."""
+        ctx = int(os.environ.get("LLM_CONTEXT", "40960"))
+        tail_chars = max(0, min(16000, int((ctx - est_prompt - 6000) * 2.5)))
+        tail = res.reasoning[-tail_chars:] if tail_chars else ""
+        msg = ("Your analysis so far ran out of room before any code. Its last part:\n<<<\n" + tail + "\n>>>\n"
+               if tail else "") + ("Stop analysing. Write the complete `def load(raw):` now, in one ```python block, "
+                                   "using the exact file, sheet and column names of THIS business.")
+        budget = max(2000, min(8000, ctx - est_prompt - int(len(tail) / 2.5) - 512))
+        r2 = self.llm.chat(call + [{"role": "user", "content": msg}], max_tokens=budget, thinking=False,
+                           temperature=0.0, seed=42 + attempt)
+        return ChatResult(r2.content, res.reasoning, {**res.usage, "salvage": r2.usage}, r2.cached), True
 
     def system_prompt(self) -> str:
         return SYSTEM.replace("{schema}", schema_prompt()).replace("{rulebook}", self.rulebook)
@@ -344,6 +476,10 @@ class Mapper:
             res = self.llm.chat(call, max_tokens=budget, thinking=True,
                                 temperature=0.0 if attempt == 1 else 0.6, seed=42 + attempt)
             code = extract_code(res.content)
+            salvaged = False
+            if code is None and res.reasoning:
+                res, salvaged = self._salvage(call, res, est_prompt, attempt)
+                code = extract_code(res.content)
             repeat = ""
             if code is not None:
                 key = code.strip()
@@ -353,7 +489,7 @@ class Mapper:
                               "example loaders.")
                 seen.setdefault(key, attempt)
             entry = {"attempt": attempt, "llm_s": res.usage.get("latency_s"), "cached": res.cached,
-                     "reasoning": res.reasoning}
+                     "reasoning": res.reasoning, **({"salvaged": code is not None} if salvaged else {})}
             messages.append({"role": "assistant", "content": res.content})
             if code is None:
                 if reviewed and best is not None and "OK" in res.content.upper():
@@ -578,6 +714,13 @@ def refresh(work_dir: str | Path, biz_id: str, biz_dir: str) -> tuple[bool, list
     errs, report = validate(tables, meta)
     errs += lint(code)
     keep = {k: old[k] for k in ("fingerprint", "biz_id") if k in old}
+    if errs and old.get("ok"):
+        # the build may have been accepted as a partial layer (bad non-core tables dropped): do the same here,
+        # as long as every table the accepted build had is still there
+        cand = _drop_bad_tables(tables, meta, errs)
+        if cand is not None and set(old.get("tables") or []) <= set(cand[0]):
+            tables, meta, report = cand
+            errs = []
     if errs:
         meta_p.write_text(json.dumps({**old, "ok": False, "refresh_errors": errs}, ensure_ascii=False, indent=1,
                                      default=str))
