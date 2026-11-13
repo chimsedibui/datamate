@@ -30,6 +30,7 @@ from ..core import parsers
 from ..core.errors import short_traceback
 from ..core.llm import LLM
 from ..core.rawio import RawStore
+from ..core.scoring import norm_str
 from ..semantic.schema import TABLES
 
 ANSWER_TYPES = ("number", "percent", "string", "date", "boolean", "list", "table", "unanswerable")
@@ -387,8 +388,11 @@ class Agent:
                 "source": source, "final": pred, "attempts": list(attempts), **extra}
 
     def answer(self, q: dict) -> QAResult:
-        """One greedy solve, or self-consistency when DM_SC=K>1: K independent solves (sample 0 greedy, the rest
-        sampled at DM_SC_TEMP), majority vote over the gated answers; fewer than DM_SC_MIN agreeing -> abstain."""
+        """One greedy solve, or self-consistency when DM_SC=K>1: up to K independent solves (sample 0 greedy, the
+        rest sampled at DM_SC_TEMP), majority vote over the gated answers; fewer than DM_SC_MIN (default: a strict
+        majority of K) agreeing -> abstain. Sampling stops as soon as the remaining samples cannot change the
+        outcome, so the result equals the full K-sample vote at a fraction of the calls (K=3: 2 calls when the
+        first two agree). After the unix time DM_SC_UNTIL questions fall back to one greedy solve."""
         t0 = time.time()
         tables, desc, source = self._ctx[q["business_id"]]
         q = {**q, "question_raw": q["question"], "question": qnorm.normalize(q["question"])}
@@ -406,14 +410,21 @@ class Agent:
                 and os.environ.get("DM_GATE_UNANS", "1") != "0" else {"type": "abstain"}
             return QAResult(pred, self._log(q, t0, pred, source, gate=early))
         k = int(os.environ.get("DM_SC") or 1)
-        if k <= 1:
+        until = float(os.environ.get("DM_SC_UNTIL") or 0)
+        if k <= 1 or (until and time.time() > until):
             return self._solve(q, t0, tables, desc, source, 0)
         temp = float(os.environ.get("DM_SC_TEMP") or 0.7)
         need = int(os.environ.get("DM_SC_MIN") or (k // 2 + 1))
-        runs = [self._solve(q, t0, tables, desc, source, i, temperature=0.0 if i == 0 else temp) for i in range(k)]
+        full = os.environ.get("DM_SC_ALL", "0") == "1"  # log all K samples (for scripts/dev/sc_sweep.py)
+        runs: list[QAResult] = []
+        for i in range(k):  # sample 0 greedy, the rest sampled; stop as soon as more samples cannot change the vote
+            runs.append(self._solve(q, t0, tables, desc, source, i, temperature=0.0 if i == 0 else temp))
+            if not full and decided([r.pred for r in runs], need, k - len(runs)):
+                break
         final, votes = vote([r.pred for r in runs], need)
         log = dict(runs[0].log)
         log.update(answer=final, final=final, elapsed_ms=int((time.time() - t0) * 1000), sc_votes=votes,
+                   sc_k=k, sc_need=need, sc_used=len(runs),
                    sc_samples=[{"pred": r.pred, "pre_gate": r.log.get("pre_gate"), "gate": r.log.get("gate"),
                                 "code": r.log.get("code")} for r in runs])
         return QAResult(final, log)
@@ -496,28 +507,67 @@ class Agent:
         return QAResult(final, log)
 
 
+def _cell_key(x, decimals: int = 6):
+    """A list/table cell as the scorer compares it: numbers within its tolerance, strings after its normalisation
+    (case, punctuation, spacing), with diacritics also folded since reference aliases are often unaccented forms."""
+    if isinstance(x, bool) or x is None:
+        return x
+    if isinstance(x, (int, float, np.integer, np.floating)):
+        f = float(x)
+        return round(f, decimals) + 0.0 if np.isfinite(f) else str(f)
+    s = norm_str(x)
+    return parsers.fold_text(s) or s
+
+
 def _vote_key(pred: dict) -> str:
-    a = pred.get("answer")
-    if pred.get("type") == "unanswerable":
+    """Two answers share a key when the scorer would judge them the same way (core/scoring.py): type must match;
+    number exact (1e-6), percent to 2 decimals, string after normalisation, date and boolean exact, list in order,
+    table with columns matched by name and rows in any order."""
+    t, a = pred.get("type"), pred.get("answer")
+    if t == "unanswerable":
         return "unanswerable"
-    if isinstance(a, str):
-        a = parsers.fold_text(a) or a
-    if isinstance(a, (int, float)) and not isinstance(a, bool):
-        a = round(float(a), 2)
-    return json.dumps([pred.get("type"), a], ensure_ascii=False, sort_keys=True, default=str)
+    if t == "percent" and isinstance(a, (int, float)) and not isinstance(a, bool):
+        a = _cell_key(a, 2)
+    elif t in ("number", "string"):
+        a = _cell_key(a)
+    elif t == "list" and isinstance(a, list):
+        a = [_cell_key(x) for x in a]
+    elif t == "table" and isinstance(a, dict) and isinstance(a.get("columns"), list) \
+            and isinstance(a.get("rows"), list):
+        cols = [_cell_key(c) for c in a["columns"]]
+        order = sorted(range(len(cols)), key=lambda i: str(cols[i]))
+        rows = [[_cell_key(r[i]) if i < len(r) else None for i in order] if isinstance(r, list) else r
+                for r in a["rows"]]
+        a = {"columns": [cols[i] for i in order],
+             "rows": sorted(rows, key=lambda r: json.dumps(r, ensure_ascii=False, default=str))}
+    return json.dumps([t, a], ensure_ascii=False, sort_keys=True, default=str)
 
 
-def vote(preds: list[dict], need: int) -> tuple[dict, dict]:
-    """Majority answer among non-abstain predictions; abstain when the top answer has fewer than `need` votes."""
+def _tally(preds: list[dict]) -> dict[str, list[dict]]:
     groups: dict[str, list[dict]] = {}
     for p in preds:
         if p.get("type") != "abstain":
             groups.setdefault(_vote_key(p), []).append(p)
+    return groups
+
+
+def vote(preds: list[dict], need: int) -> tuple[dict, dict]:
+    """Majority answer among non-abstain predictions; abstain when the top answer has fewer than `need` votes.
+    Ties go to the answer seen first (sample 0 is the greedy one)."""
+    groups = _tally(preds)
     votes = {key: len(v) for key, v in groups.items()}
     if not groups:
         return {"type": "abstain"}, votes
     best = max(groups, key=lambda key: (len(groups[key]), -list(groups).index(key)))
     return (groups[best][0] if len(groups[best]) >= need else {"type": "abstain"}), votes
+
+
+def decided(preds: list[dict], need: int, remaining: int) -> bool:
+    """True when `remaining` more samples cannot change vote(preds + more, need): the leader already has `need`
+    votes and cannot be caught, or no answer (including a new one) can still reach `need`."""
+    counts = sorted((len(v) for v in _tally(preds).values()), reverse=True) + [0, 0]
+    top, second = counts[0], counts[1]
+    return (top >= need and top > second + remaining) or top + remaining < need
 
 
 def load_business(work: str | Path, split: str | Path, biz_id: str) -> tuple[dict, dict, str]:

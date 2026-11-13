@@ -17,9 +17,12 @@ bash /code/predict.sh          # no arguments; reads /data, writes /result
 
 Fixed settings, in `predict.sh`:
 - vLLM 0.10.1.1, Qwen3-14B bf16, tensor parallel 2, prefix caching.
-- Greedy decoding (temperature 0, seed 42 per request, `--seed 0` on the server), thinking mode off.
+- Self-consistency vote: up to 3 solves per question (the first greedy, the others at temperature 0.7 with seeds
+  43, 44; `--seed 0` on the server), thinking mode off. The answer is kept only when 2 solves agree, compared the
+  way the scorer compares answers; otherwise `abstain`. The third solve runs only when the first two disagree.
 - 16 concurrent questions.
-- Time guards: no new semantic build after 1.5 h; no new question in the last 15 min of the 6 h limit; the answering
+- Time guards: no new semantic build after 1.5 h; one greedy solve (no vote) for questions started in the last
+  45 min; no new question in the last 15 min of the 6 h limit; the answering
   process is stopped 5 min before the limit (questions still running stay `abstain`).
 
 ## Approach
@@ -63,6 +66,10 @@ Fixed settings, in `predict.sh`:
    - Answerability gate: the answer becomes `abstain` when the evidence says it is probably wrong (0/empty result,
      filter values not found in the data, impossible share) or when the business has no valid semantic layer.
      If no attempt succeeds, the answer is `abstain`.
+   - Self-consistency (`DM_SC=3`): steps above run up to 3 times (greedy, then sampled). Answers are grouped by the
+     scorer's own equality (number exact, percent to 2 decimals, normalised strings, ordered lists, tables with
+     rows in any order); the answer needs 2 agreeing solves, else `abstain`. Sampling stops as soon as further
+     solves cannot change the outcome.
 3. Nothing is keyed on question or business ids. Each business's mapping is generated from its own files at run time.
 
 Code map:

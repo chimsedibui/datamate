@@ -25,9 +25,13 @@ TIME_LIMIT=21600                              # 6 h, including model loading
 BUILD_DEADLINE=$((START + 5400))              # no new semantic build after 1.5 h (falls back to raw sheets)
 DEADLINE=$((START + TIME_LIMIT - 900))        # no new question in the last 15 min
 HARD_STOP=$((START + TIME_LIMIT - 300))       # predict.py is killed 5 min before the limit (submission.jsonl is always complete)
+SC_UNTIL=$((DEADLINE - 1800))                 # questions started in the last 45 min get one greedy solve instead of the vote
 QA_JOBS=${QA_JOBS:-16}
 BUILD_JOBS=${BUILD_JOBS:-8}
 export BUILD_MAX_S=1500 BUILD_MAX_TOKENS=12000 BUILD_EXAMPLES=1   # per-business build time cap, thinking cap, few-shot loaders
+# Self-consistency: up to 3 solves per question (greedy + 2 at T=0.7), answer only when 2 agree, else abstain.
+# Sampling stops once the vote is decided, so questions whose first two solves agree cost 2 solves.
+export DM_SC=${DM_SC:-3} DM_SC_TEMP=${DM_SC_TEMP:-0.7} DM_SC_UNTIL=$SC_UNTIL
 
 mkdir -p "$OUT/logs" "$RUNLOG" "$WORK" /tmp/datamate/llm_cache
 log() { echo "[predict.sh] $(date -u +%FT%TZ) $*" | tee -a "$RUNLOG/predict_sh.log"; }
