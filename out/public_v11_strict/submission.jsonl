@@ -239,7 +239,7 @@
 {"id": "q_3f61cde37841", "type": "date", "answer": "2025-08-02"}
 {"id": "q_3f807c338eb9", "type": "number", "answer": 80336000}
 {"id": "q_3fb7bbc8ec8a", "type": "abstain"}
-{"id": "q_403bdc83bc9c", "type": "abstain"}
+{"id": "q_403bdc83bc9c", "type": "table", "answer": {"columns": ["khach_hang", "so_tien_no"], "rows": [["Mai Loan Đạt", 157000], ["Chung Loan Hiếu", 138000], ["Tống Giang Ngọc", 135000], ["Trương Hoa Hùng", 123000], ["Lâm Hiếu Nam", 119000]]}}
 {"id": "q_4067c5f50ef7", "type": "number", "answer": 470}
 {"id": "q_408c2137f088", "type": "abstain"}
 {"id": "q_409bb74c67b4", "type": "percent", "answer": 26.52}
@@ -421,7 +421,7 @@
 {"id": "q_663c209f7209", "type": "number", "answer": 73}
 {"id": "q_665fbfdbfb70", "type": "number", "answer": 176417900}
 {"id": "q_66ee0467ce9e", "type": "number", "answer": 55}
-{"id": "q_67412073e116", "type": "abstain"}
+{"id": "q_67412073e116", "type": "table", "answer": {"columns": ["khach_hang", "so_tien_no"], "rows": [["Hứa Châu Hùng", 913000], ["Lý Tâm Khánh", 725000], ["Vương Nhung Trung", 443000], ["Bạch Khoa Dũng", 416000], ["Tăng Đạt Phương", 366000]]}}
 {"id": "q_6779a7bd2b29", "type": "percent", "answer": 24.09}
 {"id": "q_682e548226be", "type": "list", "answer": [242091500, 234440500, 258096500]}
 {"id": "q_6830bf77b8c5", "type": "string", "answer": "Cty Tăng Thu"}
@@ -511,7 +511,7 @@
 {"id": "q_7d043dbd4908", "type": "list", "answer": [288932500, 294011600, 267298900]}
 {"id": "q_7d236c308111", "type": "percent", "answer": 36.47}
 {"id": "q_7d4d7cb3aa73", "type": "number", "answer": 617}
-{"id": "q_7d7ea7cccf26", "type": "abstain"}
+{"id": "q_7d7ea7cccf26", "type": "table", "answer": {"columns": ["khach_hang", "so_tien_no"], "rows": [["Đoàn Hùng Minh", 181834], ["Từ Giang Khoa", 147834], ["Lý Khánh Thảo", 129000]]}}
 {"id": "q_7dbd343490cd", "type": "number", "answer": 4205}
 {"id": "q_7de8d58e315c", "type": "abstain"}
 {"id": "q_7dff48b107f0", "type": "number", "answer": 9763000}
@@ -619,7 +619,7 @@
 {"id": "q_9d4a0d4b4bcd", "type": "list", "answer": [300865900, 277772000, 285872900]}
 {"id": "q_9d8949165b5e", "type": "string", "answer": "Hồ Cường Hùng"}
 {"id": "q_9e28638a40cb", "type": "number", "answer": 1123614700}
-{"id": "q_9e6f314a5bd8", "type": "abstain"}
+{"id": "q_9e6f314a5bd8", "type": "table", "answer": {"columns": ["khach_hang", "so_tien_no"], "rows": [["Lý Cường Hạnh", 1723000], ["Từ Phong Ngân", 1658000], ["Lưu Anh Trung", 1328000], ["Dương Giang Hà", 1242000], ["Triệu Bảo Đức", 964668]]}}
 {"id": "q_9e82414141dd", "type": "string", "answer": "Tô Giang Hồng"}
 {"id": "q_9ed7874d83b8", "type": "number", "answer": 719572600}
 {"id": "q_9eddae22a244", "type": "abstain"}
@@ -734,7 +734,7 @@
 {"id": "q_bae86e8e80f2", "type": "number", "answer": 1061632500}
 {"id": "q_bb4017bc0666", "type": "percent", "answer": 1.04}
 {"id": "q_bbfddbd1d363", "type": "number", "answer": 587068}
-{"id": "q_bc879c2a6de5", "type": "abstain"}
+{"id": "q_bc879c2a6de5", "type": "table", "answer": {"columns": ["khach_hang", "con_no"], "rows": [["Bùi Quang Quang", 1605000], ["Chung Châu Ngọc", 1601000], ["Trần Hoa Hoàng", 1284500]]}}
 {"id": "q_bd0fbda87c14", "type": "number", "answer": 2036700}
 {"id": "q_bdbe8ca608ce", "type": "date", "answer": "2026-03"}
 {"id": "q_be3f968523bf", "type": "percent", "answer": 48.92}
@@ -920,7 +920,7 @@
 {"id": "q_edce3c50d4f7", "type": "number", "answer": 1260328000}
 {"id": "q_ede70b7f6c13", "type": "list", "answer": ["Châu Quang Khánh", "Đặng Trung Huy", "Vũ Bích Phong"]}
 {"id": "q_edf890b68dfd", "type": "number", "answer": 46}
-{"id": "q_ee2df6a3e957", "type": "abstain"}
+{"id": "q_ee2df6a3e957", "type": "table", "answer": {"columns": ["khach_hang", "so_tien_no"], "rows": [["Tống Thu Hương", 759000], ["Tô Bình Đức", 728400], ["La Hiếu Long", 375000]]}}
 {"id": "q_ee58dba4a73e", "type": "number", "answer": 557246}
 {"id": "q_ee860111a8df", "type": "number", "answer": 7000000}
 {"id": "q_ef0073de2935", "type": "number", "answer": 674966000}

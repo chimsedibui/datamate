@@ -239,7 +239,7 @@
 {"id": "q_3f61cde37841", "type": "date", "answer": "2025-08-02"}
 {"id": "q_3f807c338eb9", "type": "number", "answer": 80336000}
 {"id": "q_3fb7bbc8ec8a", "type": "number", "answer": 181}
-{"id": "q_403bdc83bc9c", "type": "table", "answer": {"columns": ["khach_hang", "so_no"], "rows": [["Mai Loan Đạt", 157000], ["Chung Loan Hiếu", 138000], ["Tống Giang Ngọc", 135000], ["Trương Hoa Hùng", 123000], ["Lâm Hiếu Nam", 119000]]}}
+{"id": "q_403bdc83bc9c", "type": "table", "answer": {"columns": ["khach_hang", "so_tien_no"], "rows": [["Mai Loan Đạt", 157000], ["Chung Loan Hiếu", 138000], ["Tống Giang Ngọc", 135000], ["Trương Hoa Hùng", 123000], ["Lâm Hiếu Nam", 119000]]}}
 {"id": "q_4067c5f50ef7", "type": "number", "answer": 470}
 {"id": "q_408c2137f088", "type": "string", "answer": "Cap C-L"}
 {"id": "q_409bb74c67b4", "type": "percent", "answer": 26.52}
@@ -553,7 +553,7 @@
 {"id": "q_8960949c2614", "type": "number", "answer": 7}
 {"id": "q_89d88aa1eae8", "type": "string", "answer": "Tạ Nhung Loan"}
 {"id": "q_8a1878ffe6e6", "type": "number", "answer": 2}
-{"id": "q_8a85aa9be5ef", "type": "abstain"}
+{"id": "q_8a85aa9be5ef", "type": "table", "answer": {"columns": ["nhom_tuoi_no", "so_tien"], "rows": [["0-7 ngay", 1406334], ["8-15 ngay", 1621333], ["tren 15 ngay", 1167668]]}}
 {"id": "q_8ab2403c8c80", "type": "number", "answer": 837243500}
 {"id": "q_8c680cbcf6b0", "type": "date", "answer": "2025-05"}
 {"id": "q_8c88fcb609eb", "type": "percent", "answer": -41.61}
@@ -777,7 +777,7 @@
 {"id": "q_c64c6d29f583", "type": "number", "answer": 2583}
 {"id": "q_c65b4afeafd1", "type": "percent", "answer": 16.18}
 {"id": "q_c6940f281136", "type": "boolean", "answer": true}
-{"id": "q_c69505022fd3", "type": "abstain"}
+{"id": "q_c69505022fd3", "type": "table", "answer": {"columns": ["tho", "tien_hoa_hong"], "rows": [["Hà Loan Đạt", 7194720], ["Đoàn Bảo Phúc", 7183120], ["Lương Chi Đức", 6234625], ["Đàm Lan An", 6181560]]}}
 {"id": "q_c6bfd1c2506f", "type": "number", "answer": 1282}
 {"id": "q_c76ae61c6092", "type": "number", "answer": 2002}
 {"id": "q_c788ebe0ce0b", "type": "number", "answer": 26}
