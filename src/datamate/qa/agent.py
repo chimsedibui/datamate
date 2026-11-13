@@ -546,7 +546,7 @@ def _cell_key(x, decimals: int = 6):
 def _vote_key(pred: dict) -> str:
     """Two answers share a key when the scorer would judge them the same way (core/scoring.py): type must match;
     number exact (1e-6), percent to 2 decimals, string after normalisation, date and boolean exact, list in order,
-    table with columns matched by name and rows in any order."""
+    table by cell position with rows in any order (column names ignored)."""
     t, a = pred.get("type"), pred.get("answer")
     if t == "unanswerable":
         return "unanswerable"
@@ -556,14 +556,12 @@ def _vote_key(pred: dict) -> str:
         a = _cell_key(a)
     elif t == "list" and isinstance(a, list):
         a = [_cell_key(x) for x in a]
-    elif t == "table" and isinstance(a, dict) and isinstance(a.get("columns"), list) \
-            and isinstance(a.get("rows"), list):
-        cols = [_cell_key(c) for c in a["columns"]]
-        order = sorted(range(len(cols)), key=lambda i: str(cols[i]))
-        rows = [[_cell_key(r[i]) if i < len(r) else None for i in order] if isinstance(r, list) else r
-                for r in a["rows"]]
-        a = {"columns": [cols[i] for i in order],
-             "rows": sorted(rows, key=lambda r: json.dumps(r, ensure_ascii=False, default=str))}
+    elif t == "table" and isinstance(a, dict) and isinstance(a.get("rows"), list):
+        # The scorer matches columns by name only when every reference column name is found, which model-made names
+        # ('so_tien_con_no' vs 'so_tien_no', 'c0') almost never are; otherwise it compares by position. So the key is
+        # the cells by position, rows in any order, and column names are ignored.
+        rows = [[_cell_key(x) for x in r] if isinstance(r, list) else r for r in a["rows"]]
+        a = sorted(rows, key=lambda r: json.dumps(r, ensure_ascii=False, default=str))
     return json.dumps([t, a], ensure_ascii=False, sort_keys=True, default=str)
 
 

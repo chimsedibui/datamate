@@ -22,13 +22,15 @@ def test_keys_follow_the_scorer():
     assert _vote_key({"type": "boolean", "answer": True}) != _vote_key(N(1))
 
 
-def test_table_key_ignores_row_and_column_order():
-    a = {"type": "table", "answer": {"columns": ["Tên", "Doanh thu"], "rows": [["An", 10], ["Bình", 20]]}}
-    b = {"type": "table", "answer": {"columns": ["doanh thu", "tên"], "rows": [[20, "bình"], [10.0, "an"]]}}
-    c = {"type": "table", "answer": {"columns": ["Tên", "Doanh thu"], "rows": [["An", 10], ["Bình", 21]]}}
+def test_table_key_ignores_row_order_and_column_names():
+    a = {"type": "table", "answer": {"columns": ["khach_hang", "so_tien_con_no"], "rows": [["An", 10], ["Bình", 20]]}}
+    b = {"type": "table", "answer": {"columns": ["c0", "c1"], "rows": [["bình", 20.0], ["an", 10]]}}
+    c = {"type": "table", "answer": {"columns": ["khach_hang", "so_tien_con_no"], "rows": [["An", 10], ["Bình", 21]]}}
+    d = {"type": "table", "answer": {"columns": ["so_tien_con_no", "khach_hang"], "rows": [[10, "An"], [20, "Bình"]]}}
     assert _vote_key(a) == _vote_key(b) != _vote_key(c)
-    ref = {"type": "table", "answer": a["answer"]}
-    assert score_one(a, ref) == score_one(b, ref) == 1
+    assert _vote_key(a) != _vote_key(d)                 # positional, as the scorer compares unmatched names
+    ref = {"type": "table", "answer": {"columns": ["khach_hang", "so_tien_no"], "rows": [["An", 10], ["Bình", 20]]}}
+    assert score_one(a, ref) == score_one(b, ref) == 1 and score_one(d, ref) == -1
 
 
 def test_vote_threshold_and_tie_goes_to_first():
