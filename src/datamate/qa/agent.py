@@ -167,14 +167,16 @@ def _py(v):
 def _num(x, decimals=2):
     if isinstance(x, bool) or not isinstance(x, (int, float)) or not np.isfinite(x):
         raise ValueError(f"expected a finite number, got {x!r}")
-    x = round(float(x), decimals)
+    x = parsers.round_half_up(x, decimals)
     return int(x) if x.is_integer() else x
 
 
 def _money(x):
-    """Values >= 1000 are VND amounts here (fractional quantities like kg / m3 stay far below): whole VND.
-    The scorer compares exactly and the model often forgets the rounding (156304.55 vs 156305)."""
-    return int(round(x)) if isinstance(x, float) and abs(x) >= 1000 else x
+    """Values >= 1000 are VND amounts here (fractional quantities like kg / m3 stay far below): whole VND, half up
+    (rulebook: "nửa đồng làm tròn lên"). The scorer compares exactly and the model often forgets the rounding
+    (156304.55 vs 156305). Rounded from the raw value, not from the 2-decimal one (1234.495 -> 1234, not 1235)."""
+    y = _num(x)
+    return int(parsers.round_half_up(x, 0)) if isinstance(x, float) and abs(x) >= 1000 else y
 
 
 def normalize_answer(res) -> dict:
@@ -188,7 +190,7 @@ def normalize_answer(res) -> dict:
     if a is None:
         raise ValueError("answer is None/NaN — the computation found nothing; check filters, names and dates")
     if t == "number":
-        a = _money(_num(a))
+        a = _money(a)
     elif t == "percent":
         a = _num(a)
     elif t == "string":
@@ -205,14 +207,14 @@ def normalize_answer(res) -> dict:
     elif t == "list":
         if not isinstance(a, list):
             a = [a]
-        a = [_money(_num(x)) if isinstance(x, (int, float)) and not isinstance(x, bool) else x for x in a]
+        a = [_money(x) if isinstance(x, (int, float)) and not isinstance(x, bool) else x for x in a]
     elif t == "table":
         if isinstance(a, list) and a and isinstance(a[0], dict):
             a = {"columns": list(a[0]), "rows": [list(r.values()) for r in a]}
         if not (isinstance(a, dict) and isinstance(a.get("columns"), list) and isinstance(a.get("rows"), list)):
             raise ValueError("table answer must be {'columns': [...], 'rows': [[...], ...]}")
         a = {"columns": [str(c) for c in a["columns"]],
-             "rows": [[_money(_num(x)) if isinstance(x, (int, float)) and not isinstance(x, bool) else x for x in r]
+             "rows": [[_money(x) if isinstance(x, (int, float)) and not isinstance(x, bool) else x for x in r]
                       for r in a["rows"]]}
     return {"type": t, "answer": a}
 
@@ -314,6 +316,21 @@ def extract_code(text: str) -> str | None:
 
 # ---------------------------------------------------------------- agent
 
+# Self-consistency samples differ by prompt as well as by sampling, so their mistakes are less alike (a vote only
+# helps when wrong samples disagree). The note goes at the end of the user message: the long system prompt and the
+# tables summary stay a shared prefix for the server's prefix cache.
+SC_VARIANTS = (
+    "",
+    "\n\nBefore the code, write 3-6 short comment lines: the table(s) and columns used, the exact stored values each "
+    "name in the question maps to, the period bounds (inclusive dates), the order-status rule from the rulebook, and "
+    "the aggregation (sum / count / distinct count / average / share) with its unit. Then write solve() to follow "
+    "that plan exactly.",
+    "\n\nRead the question again before coding and settle three things, writing each as a comment: what one unit "
+    "of the answer is (orders, lines, customers, items in base unit, VND), which rows are in scope (period, status, "
+    "channel, item), and how ties or missing values are handled. Prefer the packaged helpers where one fits.",
+)
+
+
 class Agent:
     def __init__(self, llm: LLM, rulebook: str, calendar_csv: str, max_attempts: int = 3, timeout: float = 60,
                  max_repairs: int = 2):
@@ -389,7 +406,7 @@ class Agent:
 
     def answer(self, q: dict) -> QAResult:
         """One greedy solve, or self-consistency when DM_SC=K>1: up to K independent solves (sample 0 greedy, the
-        rest sampled at DM_SC_TEMP), majority vote over the gated answers; fewer than DM_SC_MIN (default: a strict
+        rest sampled at DM_SC_TEMP; with DM_SC_VARIANTS=1 sample i also gets prompt note SC_VARIANTS[i]), majority vote over the gated answers; fewer than DM_SC_MIN (default: a strict
         majority of K) agreeing -> abstain. Sampling stops as soon as the remaining samples cannot change the
         outcome, so the result equals the full K-sample vote at a fraction of the calls (K=3: 2 calls when the
         first two agree). After the unix time DM_SC_UNTIL questions fall back to one greedy solve."""
@@ -416,9 +433,11 @@ class Agent:
         temp = float(os.environ.get("DM_SC_TEMP") or 0.7)
         need = int(os.environ.get("DM_SC_MIN") or (k // 2 + 1))
         full = os.environ.get("DM_SC_ALL", "0") == "1"  # log all K samples (for scripts/dev/sc_sweep.py)
+        variants = os.environ.get("DM_SC_VARIANTS", "0") == "1"  # sample i gets SC_VARIANTS[i]
         runs: list[QAResult] = []
         for i in range(k):  # sample 0 greedy, the rest sampled; stop as soon as more samples cannot change the vote
-            runs.append(self._solve(q, t0, tables, desc, source, i, temperature=0.0 if i == 0 else temp))
+            runs.append(self._solve(q, t0, tables, desc, source, i, temperature=0.0 if i == 0 else temp,
+                                    variant=SC_VARIANTS[i % len(SC_VARIANTS)] if variants else ""))
             if not full and decided([r.pred for r in runs], need, k - len(runs)):
                 break
         final, votes = vote([r.pred for r in runs], need)
@@ -429,7 +448,8 @@ class Agent:
                                 "code": r.log.get("code")} for r in runs])
         return QAResult(final, log)
 
-    def _solve(self, q, t0, tables, desc, source, sample: int, temperature: float = 0.0) -> QAResult:
+    def _solve(self, q, t0, tables, desc, source, sample: int, temperature: float = 0.0,
+               variant: str = "") -> QAResult:
         think = os.environ.get("DM_QA_THINK", "0") == "1"
         max_out = int(os.environ.get("DM_QA_MAX_TOKENS") or (16000 if think else 4000))
         as_of = pd.Timestamp(q["as_of_date"])
@@ -443,7 +463,8 @@ class Agent:
                 + (f"\n(viết rõ: {q['question']})" if q.get("question_raw", q["question"]) != q["question"] else "")
                 + (f"\n\n## Pre-analysis (computed by code from the question)\n{pre}" if pre else "")
                 + ("\n\nNote: raw sheets only — sales()/orders()/valid_orders()/sales_lines() are NOT available; "
-                   "compute directly on t[...] following the rulebook." if "orders" not in tables else ""))
+                   "compute directly on t[...] following the rulebook." if "orders" not in tables else "")
+                + variant)
         messages = [{"role": "system", "content": self.system}, {"role": "user", "content": user}]
         env = self._env_checked(tables, as_of)
         attempts, thinking = [], []
@@ -502,6 +523,9 @@ class Agent:
                                                         + "\nReturn the full corrected code."})
         reason = checks.gate(pred, source, issues, q["question"])
         final = {"type": "abstain"} if reason else pred
+        outside = checks.periods_outside(periods, tables) if reason else None
+        if outside:  # a gated (0 / empty) answer over a period with no data at all: rulebook §7 says unanswerable
+            final = {"type": "unanswerable", "reason": outside}
         log = self._log(q, t0, final, source, thinking, attempts, gate=reason, pre_gate=pred,
                         value_issues=[it.describe() for it in issues])
         return QAResult(final, log)

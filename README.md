@@ -18,7 +18,8 @@ bash /code/predict.sh          # no arguments; reads /data, writes /result
 Fixed settings, in `predict.sh`:
 - vLLM 0.10.1.1, Qwen3-14B bf16, tensor parallel 2, prefix caching.
 - Self-consistency vote: up to 3 solves per question (the first greedy, the others at temperature 0.7 with seeds
-  43, 44; `--seed 0` on the server), thinking mode off. The answer is kept only when 2 solves agree, compared the
+  43, 44, each with its own prompt note: plain / plan first / settle unit and scope; `--seed 0` on the server),
+  thinking mode off. The answer is kept only when 2 solves agree, compared the
   way the scorer compares answers; otherwise `abstain`. The third solve runs only when the first two disagree.
 - 16 concurrent questions.
 - Time guards: no new semantic build after 1.5 h; one greedy solve (no vote) for questions started in the last
@@ -65,7 +66,8 @@ Fixed settings, in `predict.sh`:
      whole VND.
    - Answerability gate: the answer becomes `abstain` when the evidence says it is probably wrong (0/empty result,
      filter values not found in the data, impossible share) or when the business has no valid semantic layer.
-     If no attempt succeeds, the answer is `abstain`.
+     If no attempt succeeds, the answer is `abstain`. A gated answer whose periods all lie outside the shop's order
+     dates becomes `unanswerable` (rulebook §7). Numbers round half up (rulebook: "nửa đồng làm tròn lên").
    - Self-consistency (`DM_SC=3`): steps above run up to 3 times (greedy, then sampled). Answers are grouped by the
      scorer's own equality (number exact, percent to 2 decimals, normalised strings, ordered lists, tables with
      rows in any order); the answer needs 2 agreeing solves, else `abstain`. Sampling stops as soon as further

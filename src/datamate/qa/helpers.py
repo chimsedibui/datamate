@@ -10,7 +10,7 @@ import re
 import numpy as np
 import pandas as pd
 
-from ..core.parsers import fold_text
+from ..core.parsers import fold_text, round_half_up
 
 VALID_STATUS = ("completed", "delivering")
 # Rulebook-dependent switches, set by the agent from the rulebook it runs with (qa/rule_anchors.flags).
@@ -489,4 +489,4 @@ def due_dates(purchase_date, due_day, n) -> list[pd.Timestamp]:
 
 def pct(part, whole) -> float | None:
     """part/whole as a percentage rounded to 2 decimals."""
-    return None if not whole else round(float(part) / float(whole) * 100, 2)
+    return None if not whole else round_half_up(float(part) / float(whole) * 100, 2)

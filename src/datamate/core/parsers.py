@@ -18,6 +18,7 @@ from __future__ import annotations
 import math
 import re
 import unicodedata
+from decimal import ROUND_HALF_UP, Decimal
 from datetime import date, datetime, timedelta
 
 import numpy as np
@@ -307,3 +308,10 @@ def map_status(raw, mapping=None, default=None):
     if not isinstance(raw, pd.Series):
         return one(raw)
     return raw.map(one).astype(object)
+
+
+def round_half_up(x: float, decimals: int = 0) -> float:
+    """Round half away from zero on the decimal value as written (rulebook: "nửa đồng làm tròn lên").
+    Python's round() rounds halves to even (round(1234.5) == 1234) and works on the binary float
+    (round(2.675, 2) == 2.67); repr() gives the shortest decimal that reads back as the same float."""
+    return float(Decimal(repr(float(x))).quantize(Decimal(1).scaleb(-decimals), rounding=ROUND_HALF_UP))

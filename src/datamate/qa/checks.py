@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from ..core.parsers import fold_text
+from ..core.parsers import fold_text, round_half_up
 from ..semantic.schema import ORDER_STATUS, PAYMENT_METHOD
 
 _SKIP_VALUES = set(ORDER_STATUS) | set(PAYMENT_METHOD)
@@ -330,7 +330,7 @@ def coerce(question: str, pred: dict) -> dict:
         return {"type": "date", "answer": a.strip()}  # a month / day answer is a date
     if pred.get("type") == "number" and isinstance(a, (int, float)) and not isinstance(a, bool) \
             and asks_percent(question):
-        return {"type": "percent", "answer": round(float(a), 2)}
+        return {"type": "percent", "answer": round_half_up(a, 2)}
     if pred.get("type") == "table" and isinstance(a, dict) and a.get("rows") and _SUM_ALL_RX.search(f):
         last = [r[-1] for r in a["rows"] if r]
         if last and all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in last):
@@ -352,6 +352,19 @@ def _nullish_items(pred: dict) -> bool:
         [r[0] for r in a.get("rows", []) if r] if pred.get("type") == "table" and isinstance(a, dict) else []
     return any(x is None or (isinstance(x, str) and (fold_text(x) or "") in _NULLISH | {"khach le", "kl"})
                for x in items)
+
+
+def periods_outside(periods: list[tuple[str, str, str]], tables: dict) -> str | None:
+    """Rulebook §7: a period lying wholly outside the shop's order dates is unanswerable, not 0. Returns the reason
+    when every dated period the question resolves to is outside, else None."""
+    rng = _data_range(tables)
+    dated = [p for p in periods if p[1][:1].isdigit() and p[2][:1].isdigit()]
+    if not rng or not dated:
+        return None
+    if all(pd.Timestamp(p[2]) < rng[0] or pd.Timestamp(p[1]) > rng[1] for p in dated):
+        return (f"asked period {', '.join(f'{p[1]}..{p[2]}' for p in dated)} is outside the shop's data "
+                f"({rng[0].date()}..{rng[1].date()})")
+    return None
 
 
 def review(question: str, pred: dict, issues: list[ValueIssue], tables: dict,

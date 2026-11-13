@@ -29,9 +29,10 @@ SC_UNTIL=$((DEADLINE - 1800))                 # questions started in the last 45
 QA_JOBS=${QA_JOBS:-16}
 BUILD_JOBS=${BUILD_JOBS:-8}
 export BUILD_MAX_S=1500 BUILD_MAX_TOKENS=12000 BUILD_EXAMPLES=1   # per-business build time cap, thinking cap, few-shot loaders
-# Self-consistency: up to 3 solves per question (greedy + 2 at T=0.7), answer only when 2 agree, else abstain.
+# Self-consistency: up to 3 solves per question (greedy + 2 at T=0.7, each with its own prompt note), answer
+# only when 2 agree, else abstain.
 # Sampling stops once the vote is decided, so questions whose first two solves agree cost 2 solves.
-export DM_SC=${DM_SC:-3} DM_SC_TEMP=${DM_SC_TEMP:-0.7} DM_SC_UNTIL=$SC_UNTIL
+export DM_SC=${DM_SC:-3} DM_SC_TEMP=${DM_SC_TEMP:-0.7} DM_SC_VARIANTS=${DM_SC_VARIANTS:-1} DM_SC_UNTIL=$SC_UNTIL
 
 mkdir -p "$OUT/logs" "$RUNLOG" "$WORK" /tmp/datamate/llm_cache
 log() { echo "[predict.sh] $(date -u +%FT%TZ) $*" | tee -a "$RUNLOG/predict_sh.log"; }
