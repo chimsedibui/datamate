@@ -17,6 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 ORDER_STATUS = ("completed", "cancelled", "returned", "delivering")
+CHANNEL_TYPE = ("store", "phone", "chat", "website", "marketplace", "delivery_app", "other")
 PAYMENT_METHOD = ("cash", "transfer", "ewallet", "card", "cod", "debt", "installment", "other")
 
 
@@ -58,6 +59,8 @@ _t("orders", "One row per order/invoice (đơn hàng, hoá đơn, phiếu).", [
     ("employee", "str", "seller / staff / technician name or code"),
     ("branch", "str", "branch / store"),
     ("channel", "str", "sales channel (tại quầy, online, sàn TMĐT, zalo...)"),
+    ("channel_type", "str", f"channel classified (added at load from meta['labels'], never by the loader): one of "
+                            f"{CHANNEL_TYPE}"),
     ("payment_method", "str", f"payment method recorded ON THE ORDER, one of {PAYMENT_METHOD}"),
     ("payment_method_raw", "str", "original payment method text"),
     ("goods_total", "float", "sum of line amounts as recorded on the order header (tổng tiền hàng)"),
@@ -90,7 +93,7 @@ _t("products", "Product catalogue (danh mục hàng).", [
     ("name", "str", "canonical product name", True),
     ("aliases", "str", "other spellings / short names separated by '|'"),
     ("category", "str", "product group (nhóm hàng)"),
-    ("brand", "str", "brand / manufacturer"),
+    ("brand", "str", "brand / manufacturer (thương hiệu, hãng); never an ingredient or a group"),
     ("base_unit", "str", "base unit (đơn vị cơ bản)"),
     ("sell_price", "float", "current list price per base unit"),
     ("cost_price", "float", "catalogue cost per base unit (giá vốn trong danh mục)"),
@@ -98,7 +101,7 @@ _t("products", "Product catalogue (danh mục hàng).", [
     ("active_ingredient", "str", "pharmacy: active ingredient(s) exactly as recorded"),
     ("size", "str", "size / stage column (e.g. milk 'Số 2', diaper 'L')"),
     ("is_prepared", "bool", "made on site (drinks, dishes) rather than bought for resale"),
-    ("active", "bool", "still on sale"),
+    ("active", "bool", "product still on sale (đang kinh doanh / còn bán); not an ingredient or prescription flag"),
 ], key=["product_id"])
 
 _t("unit_conversions", "Unit conversion factors to the base unit.", [

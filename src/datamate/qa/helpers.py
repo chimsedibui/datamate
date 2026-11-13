@@ -13,12 +13,19 @@ import pandas as pd
 from ..core.parsers import fold_text
 
 VALID_STATUS = ("completed", "delivering")
+# Rulebook-dependent switches, set by the agent from the rulebook it runs with (qa/rule_anchors.flags).
+RULE_FLAGS = {"installment_is_credit": True, "delivering_counts": True}
+
+
+def _valid_status() -> tuple[str, ...]:
+    """Statuses that count for revenue: delivering only while the rulebook says so (RULE_FLAGS)."""
+    return VALID_STATUS if RULE_FLAGS.get("delivering_counts", True) else ("completed",)
 
 
 def valid_orders(t: dict, as_of=None) -> pd.DataFrame:
     """Orders that count for revenue/order counts (not cancelled, not returned), optionally up to as_of."""
     o = t["orders"]
-    o = o[o["status"].isin(VALID_STATUS)] if "status" in o else o
+    o = o[o["status"].isin(_valid_status())] if "status" in o else o
     if as_of is not None:
         o = o[o["order_date"] <= pd.Timestamp(as_of)]
     return o
@@ -46,7 +53,7 @@ def orders(t: dict, start=None, end=None, as_of=None, valid_only: bool = True) -
     valid_only=False keeps every status (e.g. cancellation rate). start=None: from the start of the data."""
     o = t["orders"]
     if valid_only and "status" in o:
-        o = o[o["status"].isin(VALID_STATUS)]
+        o = o[o["status"].isin(_valid_status())]
     s, e, a = _bound(start), _bound(end), _bound(as_of)
     e = a if e is None else (min(e, a) if a is not None else e)
     if s is not None:
@@ -365,8 +372,8 @@ def top_customers(t: dict, df: pd.DataFrame, value: str = "line_amount", n: int 
     return g.head(n) if n else g
 
 
-_CREDIT_METHODS = ("debt", "installment")  # trả góp is a credit order (public rulebook, phone shops)
-_MARKETPLACE = re.compile(r"\bsan\b|tmdt|shopee|lazada|tiki|tiktok|sendo")
+def _credit_methods() -> tuple[str, ...]:
+    return ("debt", "installment") if RULE_FLAGS.get("installment_is_credit") else ("debt",)
 
 
 def _payable(o: pd.DataFrame, t: dict) -> pd.Series:
@@ -391,7 +398,9 @@ def _credit_orders(t: dict) -> pd.DataFrame:
     elif "payment_method_raw" in o:
         o = o[~o["payment_method_raw"].map(lambda v: "cod" in (fold_text(v) or ""))]
     if "channel" in o:
-        o = o[~o["channel"].map(lambda v: bool(_MARKETPLACE.search(fold_text(v) or "")))]
+        from ..semantic.labels import channel_type
+        ct = o["channel_type"] if "channel_type" in o else o["channel"].map(channel_type)
+        o = o[ct.ne("marketplace").fillna(True)]
     o = o.copy()
     o["payable"] = _payable(o, t)
     return o
@@ -450,7 +459,7 @@ def debt_flow(t: dict, start, end, as_of=None) -> pd.DataFrame:
     p = p.merge(o[["order_id", "order_date"]], on="order_id")
     same_day = p[p["paid_date"] <= p["order_date"]].groupby("order_id")["amount"].sum()
     o["added"] = (o["payable"] - o["order_id"].map(same_day).fillna(0)).clip(lower=0).round(0)
-    credit = o["payment_method"].isin(_CREDIT_METHODS) if "payment_method" in o else None
+    credit = o["payment_method"].isin(_credit_methods()) if "payment_method" in o else None
     if credit is not None and credit.any():
         o = o[credit]
     else:

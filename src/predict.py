@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import random
 import sys
 import threading
@@ -47,6 +48,48 @@ def select(questions, per_biz, bizs, seed=0):
         by[q["business_id"]].append(q)
     rnd = random.Random(seed)
     return [q for b in sorted(by) for q in rnd.sample(by[b], min(per_biz, len(by[b])))]
+
+
+def classify_labels(llm, rulebook, work, split, bizs, jobs):
+    """Post-build LLM passes, once per semantic layer (skipped when meta already holds the current version):
+    product attributes the loader left empty -> refilled from the catalogue sheet (semantic/attrs.py);
+    channel / status / walk-in labels -> meta['labels'] (semantic/labels.py)."""
+    import pandas as pd
+
+    from datamate.core.rawio import RawStore
+    from datamate.semantic import attrs, labels
+    from datamate.semantic.mapper import load_semantic
+
+    def one(b):
+        mp = Path(work) / b / "meta.json"
+        if not mp.exists():
+            return
+        meta = json.loads(mp.read_text())
+        if not meta.get("ok"):
+            return
+        if (meta.get("attr_sources") or {}).get("version") != attrs.VERSION:
+            pp = Path(work) / b / "tables" / "products.parquet"
+            store = RawStore(str(split / "data" / b))
+            prods = {"products": pd.read_parquet(pp)} if pp.exists() else {}
+            prop = attrs.propose(llm, prods, store)
+            if prop is not None:
+                meta["attr_sources"] = prop
+                if prop["map"] and attrs.enrich(prods, store, meta, prop["map"]):
+                    prods["products"].to_parquet(pp, index=False)
+                mp.write_text(json.dumps(meta, ensure_ascii=False, indent=1, default=str))
+                print(f"{b}: attribute sources {sorted(prop['map'])}", flush=True)
+        if (meta.get("labels") or {}).get("version") != labels.VERSION:
+            tables, _ = load_semantic(work, b)
+            rd = split / "data" / b / "README.md"
+            lab = labels.classify(llm, tables, rd.read_text() if rd.exists() else "", rulebook)
+            if lab is not None:
+                meta = json.loads(mp.read_text())
+                meta["labels"] = lab
+                mp.write_text(json.dumps(meta, ensure_ascii=False, indent=1, default=str))
+                print(f"{b}: labels {({k: len(v) for k, v in lab.items() if k != 'version'})}", flush=True)
+
+    with ThreadPoolExecutor(max(1, jobs)) as ex:
+        list(ex.map(one, bizs))
 
 
 def build_all(llm, rulebook, work, split, bizs, jobs, deadline):
@@ -117,6 +160,9 @@ def main():
     bizs = sorted({q["business_id"] for q in questions})
     if a.build:
         build_all(llm, rulebook, a.work, split, bizs, a.build_jobs, a.build_deadline)
+
+    if os.environ.get("DM_LABELS", "1") != "0":
+        classify_labels(llm, rulebook, a.work, split, bizs, a.build_jobs)
 
     agent = Agent(llm, rulebook, str(split / "calendar.csv"))
     for b in bizs:

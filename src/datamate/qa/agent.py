@@ -25,7 +25,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from . import checks, helpers, qnorm, qparse
+from . import checks, helpers, qnorm, qparse, rule_anchors
 from ..core import parsers
 from ..core.errors import short_traceback
 from ..core.llm import LLM
@@ -83,6 +83,20 @@ HELPERS_DOC = """Globals available in your code:
                                         due up to a day X = sum(d <= X for d in ...); overdue = due BEFORE X and unpaid.
 - fold_text(s) / norm_text(s)           scalar text normalisation (no diacritics / lowercase)
 """
+
+def helpers_doc(withdrawn: set[str] = frozenset()) -> str:
+    """HELPERS_DOC without the entries of withdrawn helpers (their rulebook definition changed)."""
+    lines, keep = [], True
+    for ln in HELPERS_DOC.splitlines():
+        m = re.match(r"- (\w+)\(", ln)
+        if m:
+            keep = m.group(1) not in withdrawn
+        elif ln.startswith("- ") or not ln.startswith(" "):
+            keep = True
+        if keep:
+            lines.append(ln)
+    return "\n".join(lines) + "\n"
+
 
 SYSTEM = """You answer questions about one small Vietnamese business by writing pandas code over its tables.
 
@@ -303,7 +317,12 @@ class Agent:
     def __init__(self, llm: LLM, rulebook: str, calendar_csv: str, max_attempts: int = 3, timeout: float = 60,
                  max_repairs: int = 2):
         self.llm = llm
-        self.system = SYSTEM.format(helpers=HELPERS_DOC, rulebook=rulebook, types=list(ANSWER_TYPES))
+        rules_all = qparse.parse_rulebook(rulebook)
+        self.helper_status = rule_anchors.status(rules_all)
+        helpers.RULE_FLAGS.update(rule_anchors.flags(rules_all))
+        self.withdrawn = {h for h, st in self.helper_status.items() if st == "changed"}
+        self.helper_rules = {h: (st, rule_anchors.rule_text(rules_all, h)) for h, st in self.helper_status.items()}
+        self.system = SYSTEM.format(helpers=helpers_doc(self.withdrawn), rulebook=rulebook, types=list(ANSWER_TYPES))
         cal = pd.read_csv(calendar_csv)
         cal["date"] = pd.to_datetime(cal["date"])
         self.cal = cal
@@ -351,6 +370,12 @@ class Agent:
                                                                                          valid_only)
         return env
 
+    def _env_checked(self, tables, as_of):
+        env = self._env(tables, as_of)
+        for h in self.withdrawn:
+            env.pop(h, None)
+        return env
+
     def _log(self, q, t0, pred, source, thinking=None, attempts=(), **extra) -> dict:
         last = next((a for a in reversed(attempts) if "code" in a), None)
         # Required log fields (organizer guide §3.3): id, answer, elapsed_ms, thinking, code, output.
@@ -368,6 +393,12 @@ class Agent:
         tables, desc, source = self._ctx[q["business_id"]]
         q = {**q, "question_raw": q["question"], "question": qnorm.normalize(q["question"])}
         missing = checks.gate_tables(q["question"], tables) if source == "semantic" else None
+        if missing and os.environ.get("DM_GATE_HARD", "0") != "1":
+            # keyword evidence only: tell the model what the layer lacks and let it judge from the tables
+            q["data_note"] = (f"Data check: this question may need {missing.split(',')[0].replace('needs ', '')}. "
+                              "If the tables listed above really do not record it, answer unanswerable; if they do "
+                              "(maybe under another column or an extra_* table), compute it.")
+            missing = None
         early = checks.gate_source(source) or missing
         if early:
             # the shop records no such data: rulebook answer is 'unanswerable' (11/11 on train); DM_GATE_UNANS=0 -> abstain
@@ -392,7 +423,9 @@ class Agent:
         max_out = int(os.environ.get("DM_QA_MAX_TOKENS") or (16000 if think else 4000))
         as_of = pd.Timestamp(q["as_of_date"])
         pre = qparse.analyze(q["question"], as_of, tables, self.cal, self.rules,
-                             self._industry.get(q["business_id"]))
+                             self._industry.get(q["business_id"]), self.helper_rules)
+        if q.get("data_note"):
+            pre = (pre + "\n" if pre else "") + q["data_note"]
         periods = qparse.resolve_periods(q["question"], as_of, self.cal)
         user = (f"## Tables of business {q['business_id']} (source: {source})\n{desc}\n\n"
                 f"## Question\nAS_OF (hôm nay) = {as_of.date()} ({as_of.day_name()})\n{q.get('question_raw', q['question'])}"
@@ -401,7 +434,7 @@ class Agent:
                 + ("\n\nNote: raw sheets only — sales()/orders()/valid_orders()/sales_lines() are NOT available; "
                    "compute directly on t[...] following the rulebook." if "orders" not in tables else ""))
         messages = [{"role": "system", "content": self.system}, {"role": "user", "content": user}]
-        env = self._env(tables, as_of)
+        env = self._env_checked(tables, as_of)
         attempts, thinking = [], []
         pred = {"type": "abstain"}
         issues: list[checks.ValueIssue] = []

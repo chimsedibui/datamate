@@ -202,84 +202,11 @@ def run_loader(code: str, store: RawStore):
     meta = dict(meta or {})
     meta.setdefault("extra_desc", {})
     try:
-        _enrich_products(tables, store, meta)
+        from .attrs import enrich
+        enrich(tables, store, meta, (meta.get("attr_sources") or {}).get("map"))
     except Exception as e:  # noqa: BLE001 - best effort: never break a load
         print(f"[mapper] product enrichment skipped: {e!r}", file=sys.stderr, flush=True)
     return tables, meta
-
-
-_DRUG_COLS = {"active_ingredient": re.compile(r"^hoat chat|^thanh phan( chinh)?$|active ingredient"),
-              "is_prescription": re.compile(r"ke don|prescription|\betc\b")}
-
-
-def _blank_col(s: pd.Series, flag: bool) -> bool:
-    v = s.dropna()
-    return v.empty or (flag and v.astype(str).nunique() <= 1)
-
-
-def _enrich_products(tables: dict, store: RawStore, meta: dict) -> None:
-    """A drug attribute (hoạt chất / kê đơn) the loader left empty or constant, while a raw sheet keyed by the
-    product code or name has it: fill it from that sheet (typical failure: a merge that suffixed the columns)."""
-    p = tables.get("products")
-    if p is None or "product_id" not in p:
-        return
-    todo = [c for c in _DRUG_COLS if c not in p or _blank_col(p[c], c == "is_prescription")]
-    if not todo:
-        return
-    ids = set(p["product_id"].dropna().astype(str).str.strip())
-    names = {parsers.fold_text(x): i for x, i in zip(p.get("name", p["product_id"]), p["product_id"])}
-    for f in store.list_files():
-        try:
-            sheets = store.sheet_names(f) or [None]
-        except Exception:
-            sheets = [None]
-        for sh in sheets:
-            try:
-                raw = store.read_raw(f, sh)
-            except Exception:
-                continue
-            for h in range(min(10, len(raw))):
-                hdr = [parsers.fold_text(x) or "" for x in raw.iloc[h]]
-                hits = {c: j for c in todo for j, x in enumerate(hdr) if _DRUG_COLS[c].search(x)}
-                if not hits:
-                    continue
-                body = raw.iloc[h + 1:]
-                key = None
-                for j in range(raw.shape[1]):
-                    col = body.iloc[:, j].dropna().astype(str).str.strip()
-                    if len(col) and col.isin(ids).mean() > 0.8:
-                        key = col.reindex(body.index)
-                        break
-                    folded = col.map(parsers.fold_text)
-                    if len(col) and folded.isin(names).mean() > 0.8:
-                        key = folded.map(names).reindex(body.index)
-                        break
-                if key is None:
-                    break
-                for c, j in hits.items():
-                    vals = pd.Series(body.iloc[:, j].values, index=key.values)
-                    vals = vals[~vals.index.isna()]
-                    vals = vals[~vals.index.duplicated()]
-                    if c == "is_prescription":
-                        b = vals.map(lambda v: None if v is None or (isinstance(v, float) and v != v) else
-                                     (parsers.fold_text(v) or "") in ("true", "1", "x", "co", "yes", "c", "ke don"))
-                        if b.dropna().nunique() < 2:
-                            continue
-                        new = p["product_id"].astype(str).str.strip().map(b).fillna(False).astype(bool)
-                    else:
-                        v = vals.map(lambda x: None if x is None or (isinstance(x, float) and x != x)
-                                     or not str(x).strip() else str(x).strip())
-                        if v.dropna().empty:
-                            continue
-                        new = p["product_id"].astype(str).str.strip().map(v)
-                    p[c] = new
-                    meta.setdefault("fixes", []).append(f"products.{c} filled from raw {f}/{sh}")
-                    todo.remove(c)
-                break
-            if not todo:
-                tables["products"] = p
-                return
-    tables["products"] = p
 
 
 def loads_lenient(text: str):
@@ -712,7 +639,14 @@ def refresh(work_dir: str | Path, biz_id: str, biz_dir: str) -> tuple[bool, list
     meta_p = out / "meta.json"
     old = json.loads(meta_p.read_text())
     code = (out / "loader.py").read_text()
-    tables, meta = sanitize(*run_loader(code, RawStore(biz_dir)))
+    store = RawStore(biz_dir)
+    tables, meta = sanitize(*run_loader(code, store))
+    for k in ("labels", "attr_sources"):  # results of the post-build LLM passes survive a refresh
+        if k in old:
+            meta[k] = old[k]
+    if "attr_sources" in old:
+        from .attrs import enrich
+        enrich(tables, store, meta, old["attr_sources"].get("map"))
     tables = finalize(tables, meta)
     errs, report = validate(tables, meta)
     errs += lint(code)
@@ -744,4 +678,5 @@ def load_semantic(work_dir: str | Path, biz_id: str) -> tuple[dict[str, pd.DataF
     out = Path(work_dir) / biz_id
     meta = json.loads((out / "meta.json").read_text())
     tables = {p.stem: pd.read_parquet(p) for p in sorted((out / "tables").glob("*.parquet"))}
-    return repair_tables(tables), meta
+    from .labels import apply_labels
+    return apply_labels(repair_tables(tables), meta), meta

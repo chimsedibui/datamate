@@ -69,7 +69,7 @@ def resolve_periods(q: str, as_of: pd.Timestamp, cal: pd.DataFrame | None = None
     for m in re.finditer(r"(\d+) ngay (?:gan (?:day|nhat)|qua|vua qua|cuoi)", f):
         n = int(m.group(1))
         add(m, m.group(0), a - pd.Timedelta(days=n - 1), a)
-    for m in re.finditer(r"quys? (\d)(?:[/ ](?:nam )?(\d{4}))?", f):
+    for m in re.finditer(r"quys? (\d)(?:\s*[/. -]\s*(?:nam )?(\d{4}))?", f):
         qn = int(m.group(1))
         if 1 <= qn <= 4:
             y = int(m.group(2)) if m.group(2) else (a.year if pd.Timestamp(a.year, 3 * qn - 2, 1) <= a else a.year - 1)
@@ -91,10 +91,11 @@ def resolve_periods(q: str, as_of: pd.Timestamp, cal: pd.DataFrame | None = None
                 add(m, m.group(0), d, d)
         except ValueError:
             pass
-    for m in re.finditer(r"thangs? (\d{1,2})(?![\d/])", f):
+    for m in re.finditer(r"thangs? (\d{1,2})(?![\d/])(?: (?:cua )?nam (nay|ngoai|truoc|roi|vua roi|qua))?", f):
         mo = int(m.group(1))
         if 1 <= mo <= 12:
-            y = _year_for(mo, a)
+            # "tháng 4 năm nay / năm ngoái": the year words qualify the month, they are not a second period
+            y = _year_for(mo, a) if not m.group(2) else (a.year if m.group(2) == "nay" else a.year - 1)
             if not any(u0 <= m.start() < u1 for u0, u1 in used):
                 named_months.append(pd.Timestamp(y, mo, 1))
             add(m, m.group(0) + " (không ghi năm)", pd.Timestamp(y, mo, 1), _month_end(y, mo))
@@ -328,13 +329,24 @@ def helper_hints(q: str, tables: dict) -> list[str]:
 
 
 def analyze(q: str, as_of, tables: dict, cal: pd.DataFrame | None = None, rules: list[dict] | None = None,
-            industry: str | None = None) -> str:
+            industry: str | None = None, helper_rules: dict | None = None) -> str:
+    """`helper_rules`: helper -> (anchor status, rulebook text) from rule_anchors; hints naming a helper whose
+    rulebook row is absent or changed are dropped, the others quote the row they implement."""
     a = pd.Timestamp(as_of)
     lines = []
     nq = normalize_question(q)
     if nq != q:
         lines.append(f"Question with abbreviations expanded: {nq}")
     hints = helper_hints(q, tables)
+    if helper_rules is not None:
+        kept = []
+        for h in hints:
+            named = [n for n in re.findall(r"\b(\w+)\(", h) if n in helper_rules]
+            if any(helper_rules[n][0] != "ok" for n in named):
+                continue
+            txt = next((helper_rules[n][1] for n in named if helper_rules[n][1]), "")
+            kept.append(h + (f" [rulebook: {txt[:400]}]" if txt else ""))
+        hints = kept
     if hints:
         lines.append("Use these helpers (they implement the rulebook for this kind of question):")
         lines += [f"- {h}" for h in hints]

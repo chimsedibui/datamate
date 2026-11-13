@@ -51,7 +51,7 @@ def _month_word_sub(m: re.Match) -> str:
 _MONTH_WORD_YEAR = re.compile(rf"\b{_MONTH_WORD}\.?\s*(?P<m>\d{{1,2}})\s*[/-]\s*(?P<y>\d{{4}}|\d{{2}})\b(?![/-]?\d)", _I)
 # bare "06/2026", "8-2025" (not the tail of a full date d/m/yyyy, not 'quý 2/2026')
 _MONTH_BARE = re.compile(r"(?P<pre>^|[\s(,;:])(?P<m>\d{1,2})\s?[/-]\s?(?P<y>\d{4})\b(?![/-]?\d)")
-_QUARTER = re.compile(r"\bq\.?\s?([1-4])\s*[/-]\s*(\d{4}|\d{2})\b", _I)
+_QUARTER = re.compile(r"\bq\.?\s?([1-4])\s*[/.-]\s*(\d{4}|\d{2})\b", _I)
 _MONTH_NAMES = {"một": 1, "mot": 1, "giêng": 1, "hai": 2, "ba": 3, "tư": 4, "bốn": 4, "bon": 4, "sáu": 6,
                 "bảy": 7, "bay": 7, "tám": 8, "tam": 8, "chín": 9, "chin": 9, "mười": 10, "muoi": 10,
                 "mười một": 11, "muoi mot": 11, "mười hai": 12, "muoi hai": 12, "chạp": 12}
