@@ -52,3 +52,13 @@ def test_readme_conventions():
 def test_due_dates():
     assert helpers.due_dates("2026-01-31", 31, 2) == [pd.Timestamp("2026-02-28"), pd.Timestamp("2026-03-31")]
     assert helpers.due_dates("2025-12-10", 5, 1) == [pd.Timestamp("2026-01-05")]
+
+
+def test_qty_in_shop_without_units():
+    t = {"products": pd.DataFrame({"product_id": ["P1", "P2"], "name": ["Máy A", "Ốp B"], "base_unit": [None, None]}),
+         "order_lines": pd.DataFrame({"product_id": ["P1", "P2"], "qty": [2, 3], "qty_base": [2, 3],
+                                      "unit": [None, None]})}
+    assert helpers.qty_in(t, t["order_lines"], "chiếc").tolist() == [2.0, 3.0]
+    # one product with a recorded unit: the others are not counted in it (rulebook "bán được bao nhiêu <đơn vị>")
+    t["products"]["base_unit"] = ["chiếc", "cái"]
+    assert helpers.qty_in(t, t["order_lines"], "chiếc").fillna(-1).tolist() == [2.0, -1.0]

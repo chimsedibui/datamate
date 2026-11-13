@@ -169,10 +169,15 @@ def qty_in(t: dict, df: pd.DataFrame, unit: str, convert: bool = False) -> pd.Se
     qty_base (lines sold in bigger units included); other products -> NaN.
     convert=True: also products that have `unit` as a larger unit (unit_conversions, e.g. lon -> thùng) or a size
     written in the product name ('bao 50kg'); used for prices per unit ("giá nhập một thùng").
-    NaN rows are skipped by .sum()."""
+    NaN rows are skipped by .sum().
+    A shop that records no unit anywhere (no base unit, no line unit, no conversion) sells each item in one implicit
+    unit: every row's qty is returned as is, whatever unit is asked."""
     factors, base, name_of = _unit_factors(t)
     ft = fold_text(unit)
     key = "product_id" if "product_id" in df else "product_name"
+    if not base and not any(factors.values()) and "qty" in df and \
+            ("unit" not in df or df["unit"].isna().all()):
+        return pd.to_numeric(df["qty"], errors="coerce").astype(float)
     out = []
     for r in df.itertuples(index=False):
         k = str(getattr(r, key, None))
