@@ -103,3 +103,24 @@ Kết luận chính: so với đội 0.800, mình **đúng nhiều câu hơn** (
 3. Benchmark từ shop train bị biến đổi (đổi tên cột, nhãn trạng thái lạ, dòng tổng; nhanlenhanle `stress/`,
    phamchivy `make_dirty.py`), vì điểm dev và holdout hiện không dự báo được điểm public.
 4. Đưa vào prompt luật phá đồng hạng (rulebook §8) dưới dạng helper xếp hạng: sắp theo tiêu chí, rồi theo mã tăng dần.
+
+## Kết quả đo v11 / v12 (13/11/2026, Qwen 27B nxchat, cùng semantic layer với v10)
+
+Dev 300 câu có nhãn, mẫu greedy giống hệt nhau giữa hai bản nhờ dùng chung cache LLM:
+
+| Cấu hình | v11 (khác temperature) | v12 (khác prompt + temperature) |
+|---|---|---|
+| K=1 (greedy, tương đương v10) | 0.977 (296 đúng / 3 sai / 1 abstain) | 0.977 |
+| **K=3, cần 2 phiếu** (bản nộp) | **0.993** (299 / 1 / 0), 2,02 lần giải/câu | **0.980** (297 / 3 / 0), 2,01 lần giải/câu |
+| K=3, cần đủ 3 phiếu | 0.963 | 0.963 |
+
+- Trên dev, prompt khác nhau **kém hơn 2 câu**. Mẫu "lập kế hoạch trước" lặp lại lỗi của mẫu greedy ở câu ca chiều /
+  ca sáng. Dev đã gần bão hoà nên chênh lệch nằm trong mức nhiễu; phải nhìn điểm public mới biết.
+- Public (không nhãn): so với v11, v12 có 935 đáp án giống, 18 đáp án đổi, 18 câu abstain chuyển thành trả lời, 12 câu
+  trả lời chuyển thành abstain. Số unanswerable tăng 7 → 13: prompt "chốt phạm vi" khiến model trả unanswerable nhiều
+  hơn ở các câu về thuộc tính shop không ghi (giới tính, "thân thiện", nhóm hàng). Có 1 câu model đọc sai
+  "lai gop" (lãi gộp) thành "tiêm lại gộp".
+- Lỗi phát hiện khi đo và đã sửa ở cả v11 và v12: khoá vote cho đáp án dạng bảng từng tính cả tên cột, nên các bảng
+  cùng nội dung bị tách phiếu (public: số đáp án bảng 9 → 11 sau khi sửa).
+- Lưu ý khi chạy trong git worktree: `LLM_CACHE_DIR` mặc định nằm trong thư mục code. Phải trỏ về cache chính, nếu không
+  mẫu greedy bị gọi lại và cho đáp án khác.
