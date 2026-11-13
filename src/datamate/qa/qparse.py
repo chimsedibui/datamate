@@ -269,6 +269,27 @@ _UNITS = r"kg|m3|m2|lon|chai|thung|hop|goi|vien|tuyp|ly|coc|to|dia|phan|cai|chie
 
 
 _SUM_ALL_RX = re.compile(r"cong (moi|tat ca|het|ca cac|lai)|cong cac mon|tong cong cac")
+_UNIT_CACHE: dict[int, tuple[dict, str]] = {}
+
+
+def units_rx(tables: dict) -> str:
+    """Regex alternation of the units this shop records (line units, base units, conversion units, purchase
+    units; first word, folded) plus the common core list: a shop selling by 'cặp' or 'suất' gets its unit
+    recognised without editing a list."""
+    key = id(tables)
+    if key not in _UNIT_CACHE or _UNIT_CACHE[key][0] is not tables:
+        found = set(_UNITS.split("|"))
+        for t, c in (("order_lines", "unit"), ("products", "base_unit"), ("unit_conversions", "unit"),
+                     ("purchases", "unit")):
+            df = tables.get(t)
+            if df is not None and c in df:
+                for v in df[c].dropna().astype(str).unique()[:500]:
+                    w = (fold_text(v) or "").split()
+                    if w and re.fullmatch(r"[a-z][a-z0-9]{0,9}", w[0]):
+                        found.add(w[0])
+        _UNIT_CACHE.clear() if len(_UNIT_CACHE) > 64 else None
+        _UNIT_CACHE[key] = (tables, "|".join(sorted(found, key=len, reverse=True)))
+    return _UNIT_CACHE[key][1]
 
 
 def helper_hints(q: str, tables: dict) -> list[str]:
@@ -276,6 +297,7 @@ def helper_hints(q: str, tables: dict) -> list[str]:
     topics was right 24/77 times vs 38/52 with the helper)."""
     f = fold_text(q)
     out = []
+    _UNITS = units_rx(tables)  # noqa: N806 - shadows the core list with this shop's units
     debt = re.search(r"\bno\b|cong no|thieu tien|mua chiu|ghi no|chua tra", f)
     if debt and "orders" in tables:
         if re.search(r"tra (bot )?no|thu (hoi |duoc )?(.* )?no|no them|mua chiu them|ghi no them|tra duoc|tra bot",

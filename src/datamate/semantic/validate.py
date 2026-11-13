@@ -84,8 +84,30 @@ def _drop_subtotal_rows(df: pd.DataFrame, table: str = "") -> tuple[pd.DataFrame
         common = set(pref.value_counts().index[:3]) if len(pref) else set()
         real = ids.notna() & ids.map(_id_prefix).isin(common) if common else ids.notna()
         mask &= ~real
-    mask |= _footer_lines(df)
+    mask |= _footer_lines(df) | _total_rows(df, table)
     return (df[~mask], int(mask.sum())) if mask.any() else (df, 0)
+
+
+_AMOUNT = {"order_lines": "line_amount", "purchases": "amount"}
+
+
+def _total_rows(df: pd.DataFrame, table: str) -> pd.Series:
+    """Rows that ARE the total of their own order/receipt, whatever their label says (any language, any wording):
+    no quantity and no unit price, and an amount equal to the sum of the other rows of the same id (at least two).
+    An export that writes the order total under each order otherwise doubles every sum."""
+    none = pd.Series(False, index=df.index)
+    idc, amt = _TXN_ID.get(table), _AMOUNT.get(table)
+    num = [c for c in ("qty", "qty_base", "unit_price", "unit_cost") if c in df.columns]
+    if idc not in df.columns or amt not in df.columns or not num:
+        return none
+    cand = df[num].isna().all(axis=1) & df[amt].notna() & df[idc].notna()
+    if not cand.any():
+        return none
+    a = pd.to_numeric(df[amt], errors="coerce")
+    tot = a.groupby(df[idc]).transform("sum")
+    n = df.groupby(idc)[idc].transform("size")
+    other = tot - a
+    return cand & (n >= 3) & (a.abs() > 0) & ((a - other).abs() <= 1)
 
 
 _NOTE = re.compile(r"^(ghi chú|ghi chu|lưu ý|luu y|note|chú thích|chu thich)\b")

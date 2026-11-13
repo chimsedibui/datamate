@@ -201,3 +201,25 @@ def test_columns_already_in_the_layer_are_not_offered_again():
     attrs.propose(llm, {"products": p}, store)
     listed = llm.prompts[0].split("Columns of the shop's raw catalogue sheets")[1]
     assert "'Hãng'" in listed and "'Hoạt chất'" not in listed and "'Kê đơn'" not in listed
+
+
+# ---------------------------------------------------------------- structural total rows, data-derived units
+
+from datamate.semantic.validate import _total_rows  # noqa: E402
+
+
+def test_order_total_row_is_dropped_whatever_its_label():
+    ln = pd.DataFrame({"order_id": ["A", "A", "A", "B", "B"],
+                       "product_name": ["Trà", "Bánh", "Σ đơn A", "Cà phê", "Phí ship"],
+                       "qty": [1, 2, None, 1, None], "unit_price": [10, 5, None, 20, None],
+                       "line_amount": [10.0, 10.0, 20.0, 20.0, 15.0]})
+    assert _total_rows(ln, "order_lines").tolist() == [False, False, True, False, False]
+
+
+def test_units_come_from_the_shop_data():
+    tables = {"order_lines": pd.DataFrame({"unit": ["nồi", "cặp đôi", None]}),
+              "products": pd.DataFrame({"base_unit": ["suất"]})}
+    rx = qparse.units_rx(tables).split("|")
+    assert {"noi", "cap", "suat", "kg"} <= set(rx)
+    hints = qparse.helper_hints("tháng này bán được bao nhiêu suất", {**tables, "orders": pd.DataFrame()})
+    assert any("qty_in(sales(start, end), 'suat')" in h for h in hints)
