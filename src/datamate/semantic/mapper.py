@@ -15,17 +15,19 @@ import json
 import os
 import re
 import shutil
+import sys
 import time
-import traceback
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-from . import automap, loader_examples, parsers
-from .llm import LLM, ChatResult
+from . import automap, loader_examples
+from ..core import parsers
+from ..core.errors import short_traceback
+from ..core.llm import LLM, ChatResult
 from .profile import profile_business
-from .rawio import RawStore
+from ..core.rawio import RawStore
 from .schema import CORE_TABLES, schema_prompt
 from .validate import finalize, repair_tables, sanitize, validate
 
@@ -201,8 +203,8 @@ def run_loader(code: str, store: RawStore):
     meta.setdefault("extra_desc", {})
     try:
         _enrich_products(tables, store, meta)
-    except Exception:  # best effort: never break a load
-        pass
+    except Exception as e:  # noqa: BLE001 - best effort: never break a load
+        print(f"[mapper] product enrichment skipped: {e!r}", file=sys.stderr, flush=True)
     return tables, meta
 
 
@@ -345,7 +347,8 @@ class Mapper:
             res = self.llm.chat([{"role": "user", "content": prompt}], max_tokens=3000, thinking=False)
             d = loads_lenient(res.content)
             return d if isinstance(d, dict) else None
-        except Exception:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001 - the summary is optional context
+            print(f"[mapper] domain summary skipped: {e!r}", file=sys.stderr, flush=True)
             return None
 
     def _salvage(self, call: list[dict], res, est_prompt: int, attempt: int):
@@ -506,7 +509,7 @@ class Mapper:
                 errs, report = validate(tables, meta)
                 errs += lint(code)
             except Exception:  # noqa: BLE001
-                tb = traceback.format_exc(limit=6)
+                tb = short_traceback("<loader>", extra=3, max_chars=3000)
                 entry.update(result="exception", error=tb[-3000:])
                 log.append(entry)
                 hint = ("\nExact columns returned by raw.read_table(file, sheet) with default arguments (the example "
@@ -553,13 +556,13 @@ class Mapper:
         if best is None and lenient is not None:
             best = lenient
         if best is None:
-            if _automap_enabled():
+            if automap_enabled():
                 return self.auto_build(biz_id, biz_dir, fp=fp)
             meta = {"biz_id": biz_id, "ok": False, "fingerprint": fp}
             (out / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1))
             return meta
         code, tables, meta, report = best
-        if _automap_enabled() and os.environ.get("DM_CROSS_CHECK", "0") == "1":
+        if automap_enabled() and os.environ.get("DM_CROSS_CHECK", "0") == "1":
             tables, meta, report = _cross_check(tables, meta, report, store)
         (out / "loader.py").write_text(code)
         (out / "report.txt").write_text(report)
@@ -575,7 +578,7 @@ class Mapper:
         return meta
 
 
-def _automap_enabled() -> bool:
+def automap_enabled() -> bool:
     """automap layers are off by default: on the public test their answers scored -117 over 487 (38% correct; the
     layer has correct totals but none of the rulebook detail: fee/voucher lines, negative return lines, units),
     while shops without a layer abstain at 0. Replacing a Qwen layer's core tables after a cross-check also lost
@@ -631,9 +634,9 @@ def _cross_check(tables: dict, meta: dict, report: str, store) -> tuple[dict, di
 
 
 AUTO_LOADER = (
-    "# Deterministic fallback layer (no LLM loader passed validation): see datamate/automap.py\n"
+    "# Deterministic fallback layer (no LLM loader passed validation): see datamate/semantic/automap.py\n"
     "def load(raw):\n"
-    "    from datamate.automap import auto_load\n"
+    "    from datamate.semantic.automap import auto_load\n"
     "    return auto_load(raw)\n")
 
 

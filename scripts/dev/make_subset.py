@@ -2,9 +2,9 @@
 """Make a smaller split folder (same layout as /data) for smoke tests and quick evaluations. Standard library only.
 
 Usage:
-    python3 scripts/make_subset.py --split data/train --out /tmp/train_sample --per-biz 5      # = predict.py --per-biz 5
-    python3 scripts/make_subset.py --split data/public_test --out /tmp/smoke --limit 20
-    python3 scripts/make_subset.py --split data/train --out /tmp/train10 --per-biz 5 --max-biz 10
+    python3 scripts/dev/make_subset.py --split data/train --out /tmp/train_sample --per-biz 5      # = predict.py --per-biz 5
+    python3 scripts/dev/make_subset.py --split data/public_test --out /tmp/smoke --limit 20
+    python3 scripts/dev/make_subset.py --split data/train --out /tmp/train10 --per-biz 5 --max-biz 10
 
 Business folders, rulebook.md, calendar.csv and answers.jsonl (if present) are copied (not symlinked: links that
 point outside the folder break once it is mounted as /data in the container); questions.jsonl is filtered. --per-biz uses the same sampling as src/predict.py (seed 0), so scores compare with earlier runs.

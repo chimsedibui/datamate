@@ -32,6 +32,20 @@ def fix_filename(name: str) -> str:
         return _nfc(name)
 
 
+def guess_header_row(raw: pd.DataFrame, scan: int = 12) -> int:
+    """Index of the first row that looks like a header (mostly non-numeric labels, widest)."""
+    best, best_score = 0, -1
+    ncol = raw.shape[1]
+    for i in range(min(scan, len(raw))):
+        row = raw.iloc[i]
+        labels = sum(isinstance(v, str) and not _blank(v) and not v.strip().replace(".", "").isdigit() for v in row)
+        if labels >= max(2, ncol * 0.5) and labels > best_score:
+            best, best_score = i, labels
+            if labels >= ncol * 0.8:
+                break
+    return best
+
+
 class RawStore:
     """Read-only view over one business folder."""
 
@@ -119,7 +133,6 @@ class RawStore:
         file, sheet = self._split(file, sheet)
         raw = self.read_raw(file, sheet)
         if skip_rows is None:
-            from .profile import guess_header_row
             # the guessed row is the lowest (most specific) header row, so a multi-row header ends there
             skip_rows = max(0, guess_header_row(raw) - header_rows + 1)
         hdr = raw.iloc[skip_rows: skip_rows + header_rows].copy()

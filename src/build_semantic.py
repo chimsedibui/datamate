@@ -6,7 +6,8 @@ Usage:
     python src/build_semantic.py --split data/train --work work/train --retry-failed   # after improving the mapper
     python src/build_semantic.py --split data/train --work work/train --refresh        # re-run cached loaders, no LLM
     python src/build_semantic.py --split data/train --work work/train --biz biz_111 --loader my_loader.py
-        (--loader runs a hand-written loader instead of calling the LLM; useful for testing)
+        (--loader runs a hand-written loader instead of calling the LLM; useful for testing —
+         see src/datamate/semantic/examples/loader_biz_111.py)
 """
 from __future__ import annotations
 
@@ -20,8 +21,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from datamate.rawio import RawStore  # noqa: E402
-from datamate.validate import finalize, validate  # noqa: E402
+from datamate.core.rawio import RawStore  # noqa: E402
+from datamate.semantic.validate import finalize, validate  # noqa: E402
 
 
 def main():
@@ -42,7 +43,7 @@ def main():
     rulebook = (split / "rulebook.md").read_text()
 
     if a.refresh:
-        from datamate.mapper import refresh
+        from datamate.semantic.mapper import refresh
         for b in bizs:
             lp = Path(a.work) / b / "loader.py"
             if not lp.exists():
@@ -52,7 +53,7 @@ def main():
         return
 
     if a.loader:
-        from datamate.mapper import run_loader
+        from datamate.semantic.mapper import run_loader
         for b in bizs:
             tables, meta = run_loader(Path(a.loader).read_text(), RawStore(str(split / "data" / b)))
             tables = finalize(tables, meta)
@@ -61,8 +62,8 @@ def main():
             print("ERRORS:", errs or "none")
         return
 
-    from datamate.llm import LLM
-    from datamate.mapper import Mapper
+    from datamate.core.llm import LLM
+    from datamate.semantic.mapper import Mapper
     mapper = Mapper(LLM.for_build(), rulebook, a.work)
 
     def one(b):
@@ -79,7 +80,7 @@ def main():
         results = dict(ex.map(one, bizs))
     Path(a.work).mkdir(parents=True, exist_ok=True)
     (Path(a.work) / "summary.json").write_text(json.dumps(results, ensure_ascii=False, indent=1, default=str))
-    from datamate.llm import spent_usd
+    from datamate.core.llm import spent_usd
     print(f"{sum(m.get('ok', False) for m in results.values())}/{len(results)} businesses mapped, "
           f"est. spend ${spent_usd():.2f}")
 

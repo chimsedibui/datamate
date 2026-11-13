@@ -30,7 +30,7 @@ from types import SimpleNamespace
 from dotenv import load_dotenv
 from openai import APIConnectionError, APIStatusError, OpenAI, RateLimitError
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 load_dotenv(ROOT / ".env")
 
 
@@ -200,6 +200,9 @@ class LLM:
         usage["latency_s"] = round(time.time() - t, 2)
         usage["served_by"] = served_by
         res = ChatResult(content, reasoning, usage)
-        fp.write_text(json.dumps({"content": res.content, "reasoning": reasoning, "usage": usage,
-                                  "request": req}, ensure_ascii=False))
+        # write-then-rename: another thread asking the same request never reads a half-written file
+        tmp = fp.with_name(f"{fp.name}.{os.getpid()}.{threading.get_ident()}.tmp")
+        tmp.write_text(json.dumps({"content": res.content, "reasoning": reasoning, "usage": usage,
+                                   "request": req}, ensure_ascii=False))
+        os.replace(tmp, fp)
         return res

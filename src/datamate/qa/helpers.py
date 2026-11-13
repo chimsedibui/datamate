@@ -10,7 +10,7 @@ import re
 import numpy as np
 import pandas as pd
 
-from .parsers import fold_text
+from ..core.parsers import fold_text
 
 VALID_STATUS = ("completed", "delivering")
 
@@ -59,6 +59,10 @@ def orders(t: dict, start=None, end=None, as_of=None, valid_only: bool = True) -
 def sales(t: dict, start=None, end=None, as_of=None, valid_only: bool = True) -> pd.DataFrame:
     """order_lines of orders(t, start, end, as_of, valid_only), joined with the order header columns."""
     o = orders(t, start, end, as_of, valid_only)
+    if "order_lines" not in t:
+        # invoice-list shops (one row per order, no item detail): each order is one line worth its goods total
+        amt = o["goods_total"] if "goods_total" in o else o.get("total_payable")
+        return o.assign(line_amount=amt, line_no=1)
     ln = t["order_lines"]
     hdr = [c for c in o.columns if c not in ln.columns or c == "order_id"]
     return ln.merge(o[hdr], on="order_id", how="inner")

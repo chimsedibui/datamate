@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from datamate.scoring import score_all  # noqa: E402
+from datamate.core.scoring import score_all  # noqa: E402
 
 
 def read_jsonl(p: Path) -> dict[str, dict]:

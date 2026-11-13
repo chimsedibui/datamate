@@ -3,8 +3,8 @@
 
 Works on partial runs and on runs re-done for a few businesses (submission.jsonl only holds the last run).
 
-    python scripts/score_logs.py --logs out/dev_base/qa/logs --split data/train_dev [--biz biz_101 biz_102]
-    python scripts/score_logs.py ... --compare out/other/logs     # same questions, side by side
+    python scripts/dev/score_logs.py --logs out/dev_base/qa/logs --split data/train_dev [--biz biz_101 biz_102]
+    python scripts/dev/score_logs.py ... --compare out/other/logs     # same questions, side by side
 """
 from __future__ import annotations
 
@@ -14,8 +14,8 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from datamate.scoring import score_one  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
+from datamate.core.scoring import score_one  # noqa: E402
 
 
 def load(logs: Path, refs: dict) -> dict[str, dict]:

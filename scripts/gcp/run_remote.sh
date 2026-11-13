@@ -20,6 +20,6 @@ status)
              nvidia-smi --query-gpu=index,utilization.gpu,memory.used --format=csv,noheader;
              for f in ~/results/*/logs/_run/predict.log; do [ -f \"\$f\" ] && echo \"\$f:\" && tail -n 2 \"\$f\"; done" ;;
 export)
-  ssh_vm -- "$D && sudo apt-get install -y -qq pigz >/dev/null; DOCKER='sudo docker' bash scripts/export_image.sh ~/export" ;;
+  ssh_vm -- "$D && sudo apt-get install -y -qq pigz >/dev/null; DOCKER='sudo docker' bash scripts/release/export_image.sh ~/export" ;;
 *) echo "unknown command $cmd"; exit 2 ;;
 esac

@@ -12,7 +12,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from .rawio import RawStore, _blank
+from ..core.rawio import RawStore, _blank, guess_header_row
 
 HEAD_ROWS = 6
 SAMPLES = 8
@@ -23,20 +23,6 @@ def _cell(v, width=40) -> str:
         return "·"
     s = str(v).replace("\n", " ")
     return s if len(s) <= width else s[: width - 1] + "…"
-
-
-def guess_header_row(raw: pd.DataFrame, scan: int = 12) -> int:
-    """Index of the first row that looks like a header (mostly non-numeric labels, widest)."""
-    best, best_score = 0, -1
-    ncol = raw.shape[1]
-    for i in range(min(scan, len(raw))):
-        row = raw.iloc[i]
-        labels = sum(isinstance(v, str) and not _blank(v) and not v.strip().replace(".", "").isdigit() for v in row)
-        if labels >= max(2, ncol * 0.5) and labels > best_score:
-            best, best_score = i, labels
-            if labels >= ncol * 0.8:
-                break
-    return best
 
 
 def _distinct_samples(s: pd.Series, k: int = SAMPLES) -> tuple[list, float]:

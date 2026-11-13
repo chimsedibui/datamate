@@ -11,7 +11,7 @@ import re
 
 import pandas as pd
 
-from .parsers import fold_text, norm_text
+from ..core.parsers import fold_text, norm_text
 
 _STOP = {"ban", "duoc", "bao", "nhieu", "trong", "thang", "nam", "ngay", "cua", "hang", "cho", "the", "nao", "la",
          "va", "co", "khong", "mot", "cac", "nhung", "tong", "so", "luong", "tien", "doanh", "thu", "don", "voi",
@@ -130,6 +130,8 @@ def resolve_periods(q: str, as_of: pd.Timestamp, cal: pd.DataFrame | None = None
     for rx, fn in rel:
         for m in re.finditer(rf"\b(?:{rx})\b", f):
             if fn is None:
+                if re.search(r"\btu (?:dau|ngay|thang|\d)|\bke tu\b", f[:m.start()]):
+                    continue  # 'từ đầu tháng ... đến hết hôm nay' is a range, not a state at the end of today
                 if not any(m.start() < u1 and u0 < m.end() for u0, u1 in used):
                     used.append((m.start(), m.end()))
                     out.append((m.group(0) + " (tình trạng lúc hết hôm nay: cộng mọi phát sinh từ đầu dữ liệu)",

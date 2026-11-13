@@ -18,7 +18,7 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
-from .parsers import fold_text
+from ..core.parsers import fold_text
 
 LIBRARY = Path(__file__).with_name("loader_examples.json")
 

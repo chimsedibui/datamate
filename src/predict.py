@@ -6,11 +6,13 @@ Usage:
     python src/predict.py --split /data --work /tmp/work --out /result --build      # Docker: build semantic layer first
 
 Outputs:
-    <out>/submission.jsonl  one line per question; each answer is appended as soon as it is ready (a run stopped
-                            early keeps what it saved), then the file is rewritten in question order at the end.
+    <out>/submission.jsonl  always complete and in question order: it starts as abstain for every question and is
+                            rewritten (atomically) each time an answer is ready, so a run killed at any moment
+                            leaves a valid submission.
     <out>/logs/<id>.json    one single-line JSON record per question with id, answer, elapsed_ms, thinking, code,
                             output (+ attempts and context).
-Questions already logged in <out>/logs are reused unless --force (lets an interrupted run resume).
+Questions already logged in <out>/logs are reused unless --force (lets an interrupted run resume); logs of
+questions that failed with an error or were cut by the deadline are answered again.
 
 Time budget: --deadline is a unix timestamp. Semantic builds stop starting after --build-deadline (those
 businesses fall back to raw sheets); questions not started before --deadline are written as abstain.
@@ -29,8 +31,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from datamate.agent import Agent, load_business  # noqa: E402
-from datamate.llm import LLM  # noqa: E402
+from datamate.qa.agent import Agent, load_business  # noqa: E402
+from datamate.core.llm import LLM  # noqa: E402
 
 ABSTAIN = {"type": "abstain"}
 
@@ -48,15 +50,13 @@ def select(questions, per_biz, bizs, seed=0):
 
 
 def build_all(llm, rulebook, work, split, bizs, jobs, deadline):
-    from datamate.mapper import Mapper
+    from datamate.semantic.mapper import Mapper, automap_enabled
     mapper = Mapper(llm, rulebook, work)
-
-    from datamate.mapper import _automap_enabled
 
     def one(b):
         t = time.time()
         if deadline and time.time() > deadline:
-            if _automap_enabled():
+            if automap_enabled():
                 r = mapper.auto_build(b, str(split / "data" / b))
                 print(f"{b}: build deadline reached -> automap ok={r.get('ok')} {time.time() - t:.0f}s", flush=True)
             else:
@@ -67,7 +67,7 @@ def build_all(llm, rulebook, work, split, bizs, jobs, deadline):
             print(f"{b}: build ok={r.get('ok') if isinstance(r, dict) else r} {time.time() - t:.0f}s", flush=True)
         except Exception as e:  # noqa: BLE001
             print(f"{b}: semantic build failed: {e!r}", flush=True)
-            if _automap_enabled():
+            if automap_enabled():
                 r = mapper.auto_build(b, str(split / "data" / b))
                 print(f"{b}: automap ok={r.get('ok')} {time.time() - t:.0f}s", flush=True)
 
@@ -101,6 +101,19 @@ def main():
     rulebook = (split / "rulebook.md").read_text()
     llm = LLM()
 
+    sub_path = out / "submission.jsonl"
+    preds: dict[str, dict] = {}
+    lock = threading.Lock()
+
+    def write_submission():
+        tmp = sub_path.with_suffix(".tmp")
+        with open(tmp, "w") as f:
+            for q in questions:
+                f.write(json.dumps({"id": q["id"], **preds.get(q["id"], ABSTAIN)}, ensure_ascii=False) + "\n")
+        tmp.replace(sub_path)
+
+    write_submission()  # abstain everywhere until answers arrive: valid even if the run dies during the build
+
     bizs = sorted({q["business_id"] for q in questions})
     if a.build:
         build_all(llm, rulebook, a.work, split, bizs, a.build_jobs, a.build_deadline)
@@ -112,20 +125,22 @@ def main():
         print(f"{b}: {source} ({len(tables)} tables)", flush=True)
 
     t0 = time.time()
-    sub_path = out / "submission.jsonl"
-    sub_path.write_text("")
-    lock = threading.Lock()
 
-    def save(q, pred):
-        with lock, open(sub_path, "a") as f:
-            f.write(json.dumps({"id": q["id"], **pred}, ensure_ascii=False) + "\n")
-            f.flush()
+    def logged(lp):
+        """A finished answer from an earlier run; None for no log, an unreadable one, or one that ended in an error."""
+        if a.force or not lp.exists():
+            return None
+        try:
+            d = json.loads(lp.read_text())
+        except ValueError:
+            return None
+        return None if d.get("error") else d.get("answer") or d.get("final") or ABSTAIN
 
     def one(q):
         lp = logs / f"{q['id']}.json"
-        if lp.exists() and not a.force:
-            d = json.loads(lp.read_text())
-            pred = d.get("answer") or d.get("final") or ABSTAIN
+        pred = logged(lp)
+        if pred is not None:
+            pass
         elif a.deadline and time.time() > a.deadline:
             pred = ABSTAIN
             lp.write_text(json.dumps({"id": q["id"], "answer": pred, "elapsed_ms": 0, "thinking": None,
@@ -140,21 +155,16 @@ def main():
                 log = {"id": q["id"], "answer": pred, "elapsed_ms": int((time.time() - t) * 1000),
                        "thinking": None, "code": None, "output": None, "error": repr(e)}
             lp.write_text(json.dumps(log, ensure_ascii=False, default=str))
-        save(q, pred)
+        with lock:
+            preds[q["id"]] = pred
+            write_submission()
         return pred
 
-    preds = {}
     with ThreadPoolExecutor(a.jobs) as ex:
-        for i, (q, p) in enumerate(zip(questions, ex.map(one, questions)), 1):
-            preds[q["id"]] = p
+        for i, _ in enumerate(ex.map(one, questions), 1):
             if i % 20 == 0 or i == len(questions):
                 print(f"{i}/{len(questions)} answered, {time.time() - t0:.0f}s", flush=True)
 
-    tmp = sub_path.with_suffix(".tmp")
-    with open(tmp, "w") as f:
-        for q in questions:
-            f.write(json.dumps({"id": q["id"], **preds.get(q["id"], ABSTAIN)}, ensure_ascii=False) + "\n")
-    tmp.replace(sub_path)
     print(f"wrote {sub_path} ({len(preds)} answers)")
 
 

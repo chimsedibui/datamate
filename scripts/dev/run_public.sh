@@ -5,17 +5,17 @@
 #                 PROVIDER=openrouter (Qwen3-14B, key OPENROUTER_API_KEY).
 #
 # Usage:
-#   bash scripts/run_public.sh                       # build + qa_ntq (NTQ Qwen 27B)
-#   STAGES="build qa_ntq" bash scripts/run_public.sh
-#   PROVIDER=openrouter STAGES="build qa_qwen qa_gpt4o" bash scripts/run_public.sh
-#   STAGES="build qa_qwen" bash scripts/run_public.sh
-#   STAGES=qa_gpt4o GPT_BUDGET=30 bash scripts/run_public.sh
-#   WORK=work/public_mix TAG=mix STAGES=qa_qwen bash scripts/run_public.sh   # QA on another layer folder
+#   bash scripts/dev/run_public.sh                       # build + qa_ntq (NTQ Qwen 27B)
+#   STAGES="build qa_ntq" bash scripts/dev/run_public.sh
+#   PROVIDER=openrouter STAGES="build qa_qwen qa_gpt4o" bash scripts/dev/run_public.sh
+#   STAGES="build qa_qwen" bash scripts/dev/run_public.sh
+#   STAGES=qa_gpt4o GPT_BUDGET=30 bash scripts/dev/run_public.sh
+#   WORK=work/public_mix TAG=mix STAGES=qa_qwen bash scripts/dev/run_public.sh   # QA on another layer folder
 #
 # Outputs: out/public_<model>/submission.jsonl (upload this) + logs/, layers in work/public_qwen.
 # Cost (measured token use, list prices): build ~$0.3, qa_qwen ~$2-3, qa_gpt4o ~$30-50. Each stage has its own cap.
 set -euo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 
 STAGES=${STAGES:-"build qa_ntq"}
 PROVIDER=${PROVIDER:-ntq}
@@ -49,7 +49,7 @@ qa() {  # qa <name>
   echo "== QA $1 ($LLM_MODEL, cap \$$LLM_BUDGET_USD) -> $out"
   $PY src/predict.py --split "$SPLIT" --work "$WORK" --out "$out" --jobs "${QA_JOBS:-8}" > "$out/predict.log" 2>&1 || true
   tail -n 3 "$out/predict.log"
-  python3 scripts/validate_output.py --questions "$SPLIT/questions.jsonl" --result "$out" | tail -n 5
+  python3 scripts/release/validate_output.py --questions "$SPLIT/questions.jsonl" --result "$out" | tail -n 5
   python3 - "$out/submission.jsonl" <<'EOF'
 import collections, json, sys
 rows = [json.loads(l) for l in open(sys.argv[1]) if l.strip()]

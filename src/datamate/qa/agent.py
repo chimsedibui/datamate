@@ -18,19 +18,19 @@ import json
 import os
 import multiprocessing as mp
 import re
-import threading
 import time
-import traceback
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-from . import checks, helpers, parsers, qparse
-from .llm import LLM
-from .rawio import RawStore
-from .schema import TABLES
+from . import checks, helpers, qnorm, qparse
+from ..core import parsers
+from ..core.errors import short_traceback
+from ..core.llm import LLM
+from ..core.rawio import RawStore
+from ..semantic.schema import TABLES
 
 ANSWER_TYPES = ("number", "percent", "string", "date", "boolean", "list", "table", "unanswerable")
 
@@ -258,7 +258,7 @@ def _child(conn, code, env):
         res = ns["solve"]()
         conn.send(("ok", normalize_answer(res)))
     except Exception:  # noqa: BLE001
-        conn.send(("error", traceback.format_exc(limit=4)[-2500:]))
+        conn.send(("error", short_traceback("<solve>")))
     finally:
         conn.close()
 
@@ -298,8 +298,6 @@ class Agent:
         self.max_repairs = max_repairs
         self.timeout = timeout
         self._ctx: dict[str, tuple[dict, str, str]] = {}
-        self._findings: dict[str, dict] = {}  # biz -> {(column, literal): stored value} resolved by earlier questions
-        self._lock = threading.Lock()
 
     def set_business(self, biz_id: str, tables: dict[str, pd.DataFrame], meta: dict, source: str):
         self._ctx[biz_id] = (tables, describe_tables(tables, meta), source)
@@ -319,7 +317,6 @@ class Agent:
                 tables, df, value, n, ascending)
             env["debts"] = lambda at=None: helpers.debts(tables, at if at is not None else as_of, as_of)
             env["debt_flow"] = lambda start=None, end=None: helpers.debt_flow(tables, start, end, as_of)
-        if "orders" in tables:
             env["sales"] = lambda start=None, end=None, valid_only=True: helpers.sales(tables, start, end, as_of,
                                                                                        valid_only)
             env["orders"] = lambda start=None, end=None, valid_only=True: helpers.orders(tables, start, end, as_of,
@@ -332,7 +329,8 @@ class Agent:
         return {"id": q["id"], "answer": pred, "elapsed_ms": int((time.time() - t0) * 1000),
                 "thinking": thinking if thinking and any(thinking) else None,
                 "code": last["code"] if last else None, "output": last["output"] if last else None,
-                "business_id": q["business_id"], "question": q["question"], "as_of_date": q["as_of_date"],
+                "business_id": q["business_id"], "question": q.get("question_raw", q["question"]),
+                "question_norm": q["question"], "as_of_date": q["as_of_date"],
                 "source": source, "final": pred, "attempts": list(attempts), **extra}
 
     def answer(self, q: dict) -> QAResult:
@@ -340,6 +338,7 @@ class Agent:
         sampled at DM_SC_TEMP), majority vote over the gated answers; fewer than DM_SC_MIN agreeing -> abstain."""
         t0 = time.time()
         tables, desc, source = self._ctx[q["business_id"]]
+        q = {**q, "question_raw": q["question"], "question": qnorm.normalize(q["question"])}
         missing = checks.gate_tables(q["question"], tables) if source == "semantic" else None
         early = checks.gate_source(source) or missing
         if early:
@@ -367,7 +366,8 @@ class Agent:
         pre = qparse.analyze(q["question"], as_of, tables, self.cal)
         periods = qparse.resolve_periods(q["question"], as_of, self.cal)
         user = (f"## Tables of business {q['business_id']} (source: {source})\n{desc}\n\n"
-                f"## Question\nAS_OF (hôm nay) = {as_of.date()} ({as_of.day_name()})\n{q['question']}"
+                f"## Question\nAS_OF (hôm nay) = {as_of.date()} ({as_of.day_name()})\n{q.get('question_raw', q['question'])}"
+                + (f"\n(viết rõ: {q['question']})" if q.get("question_raw", q["question"]) != q["question"] else "")
                 + (f"\n\n## Pre-analysis (computed by code from the question)\n{pre}" if pre else "")
                 + ("\n\nNote: raw sheets only — sales()/orders()/valid_orders()/sales_lines() are NOT available; "
                    "compute directly on t[...] following the rulebook." if "orders" not in tables else ""))
@@ -376,7 +376,7 @@ class Agent:
         attempts, thinking = [], []
         pred = {"type": "abstain"}
         issues: list[checks.ValueIssue] = []
-        value_only_prev: tuple[str, list] | None = None
+        value_only_prev: str | None = None  # code of the last 'only fix the values' round
         errors_left, repairs_left = self.max_attempts, self.max_repairs
         i = 0
         while errors_left > 0:
@@ -400,18 +400,12 @@ class Agent:
                 continue
             pred = checks.coerce(q["question"], payload)
             if value_only_prev is not None:
-                if checks.skeleton(code) != checks.skeleton(value_only_prev[0]):
+                if checks.skeleton(code) != checks.skeleton(value_only_prev):
                     attempts[-1]["skeleton_changed"] = True
-                learned = checks.learned_values(value_only_prev[1], code, tables)
-                if learned:
-                    with self._lock:
-                        self._findings.setdefault(q["business_id"], {}).update(learned)
                 value_only_prev = None
             issues = checks.value_checks(code, tables)
             if issues:
-                with self._lock:
-                    known = dict(self._findings.get(q["business_id"], {}))
-                fixed, applied = checks.auto_fix(code, issues, known)
+                fixed, applied = checks.auto_fix(code, issues)
                 if applied:
                     st2, out2 = run_code(fixed, env, self.timeout)
                     attempts.append({"attempt": i, "auto_fix": applied, "code": fixed, "status": st2,
@@ -426,7 +420,7 @@ class Agent:
             attempts[-1]["review"] = probs
             only_values = bool(issues) and len(probs) == 1
             if only_values:
-                value_only_prev = (code, issues)
+                value_only_prev = code
             keep = ("\nOnly the listed values are wrong: change those literals (or the column they are compared to) "
                     "and keep the rest of the code as it is." if only_values else "")
             messages.append({"role": "user", "content": f"solve() returned {json.dumps(pred, ensure_ascii=False)}"
@@ -466,7 +460,7 @@ def vote(preds: list[dict], need: int) -> tuple[dict, dict]:
 
 def load_business(work: str | Path, split: str | Path, biz_id: str) -> tuple[dict, dict, str]:
     """Semantic layer if it was built successfully, else raw sheets."""
-    from .mapper import load_semantic
+    from ..semantic.mapper import load_semantic
     meta_p = Path(work) / biz_id / "meta.json"
     if meta_p.exists() and json.loads(meta_p.read_text()).get("ok"):
         tables, meta = load_semantic(work, biz_id)

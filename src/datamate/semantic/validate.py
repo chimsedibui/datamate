@@ -12,7 +12,7 @@ import re
 import numpy as np
 import pandas as pd
 
-from .parsers import fold_text, norm_text, status_hint
+from ..core.parsers import fold_text, norm_text, status_hint
 from .schema import ORDER_STATUS, PAYMENT_METHOD, TABLES
 
 

@@ -24,6 +24,7 @@ PORT=8000
 TIME_LIMIT=21600                              # 6 h, including model loading
 BUILD_DEADLINE=$((START + 5400))              # no new semantic build after 1.5 h (falls back to raw sheets)
 DEADLINE=$((START + TIME_LIMIT - 900))        # no new question in the last 15 min
+HARD_STOP=$((START + TIME_LIMIT - 300))       # predict.py is killed 5 min before the limit (submission.jsonl is always complete)
 QA_JOBS=${QA_JOBS:-16}
 BUILD_JOBS=${BUILD_JOBS:-8}
 export BUILD_MAX_S=1500 BUILD_MAX_TOKENS=12000 BUILD_EXAMPLES=1   # per-business build time cap, thinking cap, few-shot loaders
@@ -83,10 +84,11 @@ if [ -n "$KV_TOKENS" ]; then
 fi
 log "KV cache ${KV_TOKENS:-?} tokens -> build jobs $BUILD_JOBS"
 
-$APP_PY "$CODE/src/predict.py" --split "$DATA" --work "$WORK" --out "$OUT" \
+timeout -k 30 $(( HARD_STOP - $(date +%s) )) $APP_PY "$CODE/src/predict.py" --split "$DATA" --work "$WORK" --out "$OUT" \
   --build --build-jobs "$BUILD_JOBS" --build-deadline "$BUILD_DEADLINE" \
   --deadline "$DEADLINE" --jobs "$QA_JOBS" 2>&1 | tee "$RUNLOG/predict.log"
 RC=${PIPESTATUS[0]}
+[ "$RC" -eq 124 ] && log "predict.py reached the hard stop; unanswered questions stay abstain"
 
 if [ ! -s "$OUT/submission.jsonl" ]; then
   log "no submission written; writing abstain for every question"

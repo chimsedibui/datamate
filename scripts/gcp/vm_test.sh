@@ -23,20 +23,20 @@ for s in $stages; do
   log "stage $s start"
   case $s in
   smoke)
-    python3 scripts/make_subset.py --split data/public_test --out "$R/data_smoke" --per-biz 10 --max-biz 2
-    bash scripts/check_submission.sh run "$R/data_smoke" "$R/smoke" 2>&1 | tee "$R/smoke.txt" ;;
+    python3 scripts/dev/make_subset.py --split data/public_test --out "$R/data_smoke" --per-biz 10 --max-biz 2
+    bash scripts/release/check_submission.sh run "$R/data_smoke" "$R/smoke" 2>&1 | tee "$R/smoke.txt" ;;
   train10)
-    [ -d "$R/data_train10" ] || python3 scripts/make_subset.py --split data/train --out "$R/data_train10" --per-biz 5 --max-biz "${TRAIN_BIZ:-10}"
-    bash scripts/check_submission.sh run "$R/data_train10" "$R/train10" 2>&1 | tee "$R/train10.txt" ;;
+    [ -d "$R/data_train10" ] || python3 scripts/dev/make_subset.py --split data/train --out "$R/data_train10" --per-biz 5 --max-biz "${TRAIN_BIZ:-10}"
+    bash scripts/release/check_submission.sh run "$R/data_train10" "$R/train10" 2>&1 | tee "$R/train10.txt" ;;
   train)
-    [ -d "$R/data_train150" ] || python3 scripts/make_subset.py --split data/train --out "$R/data_train150" --per-biz 5
-    bash scripts/check_submission.sh run "$R/data_train150" "$R/train1" 2>&1 | tee "$R/train1.txt" ;;
+    [ -d "$R/data_train150" ] || python3 scripts/dev/make_subset.py --split data/train --out "$R/data_train150" --per-biz 5
+    bash scripts/release/check_submission.sh run "$R/data_train150" "$R/train1" 2>&1 | tee "$R/train1.txt" ;;
   repro)
-    [ -d "$R/data_train150" ] || python3 scripts/make_subset.py --split data/train --out "$R/data_train150" --per-biz 5
-    bash scripts/check_submission.sh run "$R/data_train150" "$R/train2" 2>&1 | tee "$R/train2.txt"
-    bash scripts/check_submission.sh compare "$R/data_train150" "$R/train1" "$R/train2" 2>&1 | tee "$R/repro.txt" ;;
+    [ -d "$R/data_train150" ] || python3 scripts/dev/make_subset.py --split data/train --out "$R/data_train150" --per-biz 5
+    bash scripts/release/check_submission.sh run "$R/data_train150" "$R/train2" 2>&1 | tee "$R/train2.txt"
+    bash scripts/release/check_submission.sh compare "$R/data_train150" "$R/train1" "$R/train2" 2>&1 | tee "$R/repro.txt" ;;
   public)
-    bash scripts/check_submission.sh run data/public_test "$R/public" 2>&1 | tee "$R/public.txt" ;;
+    bash scripts/release/check_submission.sh run data/public_test "$R/public" 2>&1 | tee "$R/public.txt" ;;
   *) log "unknown stage $s" ;;
   esac
   log "stage $s done"

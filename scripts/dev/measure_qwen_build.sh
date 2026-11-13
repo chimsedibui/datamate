@@ -3,14 +3,14 @@
 # Uses qwen/qwen3-14b on OpenRouter (same model, 40960 context like the container) instead of a GPU VM.
 #
 # Usage:
-#   bash scripts/measure_qwen_build.sh                 # build 30 train businesses + QA on the 150-question sample
-#   EXAMPLES=0 bash scripts/measure_qwen_build.sh      # A/B: builds without few-shot loader examples
-#   STAGES=build bash scripts/measure_qwen_build.sh    # build only (STAGES=qa for QA only)
+#   bash scripts/dev/measure_qwen_build.sh                 # build 30 train businesses + QA on the 150-question sample
+#   EXAMPLES=0 bash scripts/dev/measure_qwen_build.sh      # A/B: builds without few-shot loader examples
+#   STAGES=build bash scripts/dev/measure_qwen_build.sh    # build only (STAGES=qa for QA only)
 #
 # Cost (OpenRouter list price $0.12 / $0.24 per 1M tokens in/out): ~$1-1.5 for the builds, ~$0.5 for QA.
 # LLM_BUDGET_USD caps each process; the prices below make that cap count real Qwen prices (not gpt-4o).
 set -euo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 
 EXAMPLES=${EXAMPLES:-1}
 STAGES=${STAGES:-"build qa"}

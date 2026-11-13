@@ -18,7 +18,7 @@ import re
 import numpy as np
 import pandas as pd
 
-from .parsers import fold_text, map_status, parse_datetime, parse_money, year_from_text
+from ..core.parsers import fold_text, map_status, parse_datetime, parse_money, year_from_text
 
 _SKIP_SHEET = re.compile(
     r"\b(nhap|ton|kho|giao hang|thanh toan|phieu thu|so quy|khach hang|san pham|hang hoa|danh muc|danhmuc|quy doi|"

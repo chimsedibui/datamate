@@ -2,8 +2,8 @@
 """Check a /result folder against the organizer guide (sections 3.2, 3.3, 10). Standard library only.
 
 Usage:
-    python3 scripts/validate_output.py --questions data/public_test/questions.jsonl --result result/
-    python3 scripts/validate_output.py --questions ... --result run1/ --compare run2/    # reproducibility
+    python3 scripts/release/validate_output.py --questions data/public_test/questions.jsonl --result result/
+    python3 scripts/release/validate_output.py --questions ... --result run1/ --compare run2/    # reproducibility
 
 Checks: every question has exactly one submission line in the published format; every question has a log record
 with id, answer, elapsed_ms (non-negative int) and thinking (str, list of str or null); code/output present when

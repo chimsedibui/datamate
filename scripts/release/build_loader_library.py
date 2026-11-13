@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Collect validated training-split loaders into src/datamate/loader_examples.json (few-shot examples for builds).
+"""Collect validated training-split loaders into src/datamate/semantic/loader_examples.json (few-shot examples for builds).
 
 Usage:
-    python scripts/build_loader_library.py --work work/train --split data/train
+    python scripts/release/build_loader_library.py --work work/train --split data/train
 
 For every business whose cached build is ok, stores its loader code, industry, raw column signature and data hash.
 Provenance for the organizers (API-generated artifacts, guide section 8) is copied to
@@ -18,11 +18,11 @@ import shutil
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
-from datamate.loader_examples import LIBRARY, column_signature, data_hash  # noqa: E402
-from datamate.rawio import RawStore  # noqa: E402
+from datamate.semantic.loader_examples import LIBRARY, column_signature, data_hash  # noqa: E402
+from datamate.core.rawio import RawStore  # noqa: E402
 
 
 def sha256(p: Path) -> str:
@@ -66,9 +66,9 @@ def main():
     LIBRARY.write_text(json.dumps(lib, ensure_ascii=False, indent=1))
     (prov / "manifest.json").write_text(json.dumps({
         "description": "Validated semantic-layer loaders generated during development for the provided training "
-                       "businesses; shipped as few-shot examples in src/datamate/loader_examples.json",
+                       "businesses; shipped as few-shot examples in src/datamate/semantic/loader_examples.json",
         "source_split": "train (provided training data only; no public/private test data)",
-        "library": {"path": "src/datamate/loader_examples.json", "sha256": sha256(LIBRARY), "examples": len(lib)},
+        "library": {"path": "src/datamate/semantic/loader_examples.json", "sha256": sha256(LIBRARY), "examples": len(lib)},
         "files": files}, ensure_ascii=False, indent=1))
     print(f"{len(lib)} examples -> {LIBRARY.relative_to(ROOT)}; provenance -> {prov.relative_to(ROOT)}")
 

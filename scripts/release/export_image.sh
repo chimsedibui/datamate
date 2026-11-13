@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Export the final image for upload (organizer guide section 11): .tar.gz, uncompressed size, md5 file.
-# Usage: TEAM=<lowercase_team> bash scripts/export_image.sh [out_dir]
+# Usage: TEAM=<lowercase_team> bash scripts/release/export_image.sh [out_dir]
 set -euo pipefail
 DOCKER=${DOCKER:-docker}   # e.g. DOCKER="sudo docker"
 TEAM=${TEAM:?set TEAM to the lowercase team identifier}

@@ -1,8 +1,8 @@
 {
- "description": "Validated semantic-layer loaders generated during development for the provided training businesses; shipped as few-shot examples in src/datamate/loader_examples.json",
+ "description": "Validated semantic-layer loaders generated during development for the provided training businesses; shipped as few-shot examples in src/datamate/semantic/loader_examples.json",
  "source_split": "train (provided training data only; no public/private test data)",
  "library": {
-  "path": "src/datamate/loader_examples.json",
+  "path": "src/datamate/semantic/loader_examples.json",
   "sha256": "b7f4945cf9ecc1d8b9de4bc88d2afde7ea5cf70c14430219a26741066d155f50",
   "examples": 21
  },

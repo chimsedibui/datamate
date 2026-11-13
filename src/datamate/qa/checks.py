@@ -27,14 +27,15 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from .parsers import fold_text
-from .schema import ORDER_STATUS, PAYMENT_METHOD
+from ..core.parsers import fold_text
+from ..semantic.schema import ORDER_STATUS, PAYMENT_METHOD
 
 _SKIP_VALUES = set(ORDER_STATUS) | set(PAYMENT_METHOD)
 _DATE_RX = re.compile(r"^\d{4}-\d{1,2}(-\d{1,2})?([ T].*)?$|^\d{1,2}[/-]\d{1,2}([/-]\d{2,4})?$")
 _REGEX_CHARS = re.compile(r"[|()\[\]^$*+?\\{}]")
-_CHANGE_RX = re.compile(r"tang|giam|thay doi|so voi|so vs|hon hay kem|nhieu hay it|cao hay thap|chenh|\bhon\b|\bkem\b")  # growth / diff % may be <0 or >100
-_SHARE_RX = re.compile(r"chiem|ti trong|ty trong|ti le|ty le|bao nhieu phan tram|bao nhieu %|% (doanh thu|tong)")
+_CHANGE_RX = re.compile(r"tang|giam|thay doi|\bso (?:voi|vs|v|thang|tuan|nam|quy|cung|ky)\b|hon hay kem|nhieu hay it|cao hay thap|"
+                        r"len hay xuong|\blen\b|\bxuong\b|chenh|\bhon\b|\bkem\b|\bsut\b|tang truong")  # growth / diff % may be <0 or >100
+_SHARE_RX = re.compile(r"chiem|ti trong|ty trong|ti le|ty le|dong gop|% (doanh thu|tong)")  # explicit share wording only
 _UNANS_DATA_RX = re.compile(r"no (valid )?(data|orders|sales|records|rows)|not (found|available|present)|outside|"
                             r"does not (contain|include|cover)|khong co du lieu|no .* in ", re.I)
 
@@ -229,19 +230,13 @@ def value_checks(code: str, tables: dict) -> list[ValueIssue]:
     return list(issues.values())
 
 
-def auto_fix(code: str, issues: list[ValueIssue], known: dict | None = None) -> tuple[str, list[dict]]:
-    """Replace literals whose only candidate in the same column differs just by case/diacritics/spacing, or that an
-    earlier question of the same business already resolved (`known`: {(column, literal): stored value})."""
+def auto_fix(code: str, issues: list[ValueIssue]) -> tuple[str, list[dict]]:
+    """Replace literals whose only candidate in the same column differs just by case/diacritics/spacing."""
     edits = []
     for it in issues:
         same = [v for c, v in it.candidates if c.split(".", 1)[1] == it.column
                 and (fold_text(v) or "") == (fold_text(it.literal) or "")]
-        learned = (known or {}).get((it.column, it.literal))
-        if it.op != "eq":
-            continue
-        if learned is not None:
-            same = [learned]
-        elif len(set(same)) != 1:
+        if it.op != "eq" or len(set(same)) != 1:
             continue
         for node in it.nodes:
             edits.append((node, same[0], it.literal))
@@ -274,28 +269,6 @@ def skeleton(code: str) -> str | None:
         if isinstance(n, ast.Constant):
             n.value = None
     return ast.dump(tree, annotate_fields=False)
-
-
-def learned_values(old_issues: list[ValueIssue], new_code: str, tables: dict) -> dict:
-    """{(column, missing literal): literal that replaced it} after a successful repair: the new code compares the same
-    column against exactly one other literal, which exists in the data."""
-    if not old_issues:
-        return {}
-    by_col: dict[str, set] = {}
-    for node, col, op, _ in extract_literals(new_code):
-        if op == "eq":
-            by_col.setdefault(col, set()).add(node.value)
-    out = {}
-    for it in old_issues:
-        if it.op != "eq":
-            continue
-        new = by_col.get(it.column, set()) - {it.literal}
-        if len(new) == 1:
-            v = next(iter(new))
-            cols = _text_values(tables, it.column)
-            if any(_exists(vals, v, "eq", "exact") for vals in cols.values()):
-                out[(it.column, it.literal)] = v
-    return out
 
 
 # ---------------------------------------------------------------- review + gate
@@ -438,11 +411,11 @@ def _has(tables: dict, table: str, col: str | None = None) -> bool:
 # (folded question pattern, data the question needs, test on the tables). Without that data any number the model
 # produces is a guess, and a wrong answer costs -1 against 0 for abstaining.
 _NEEDS = [
-    (r"nhap hang|nha cung cap|\bncc\b|gia nhap|phieu nhap|nhap ve|nhap them|nhap bao nhieu|lan nhap|tien nhap",
+    (r"nhap hang|nha cung cap|\bncc\b|gia nhap|phieu nhap|nhap bao nhieu|lan nhap|tien nhap",
      "purchases", lambda t: _has(t, "purchases")),
     (r"san pham|mat hang|\bmon\b|ten hang|ban chay|\bsku\b|nhom hang|loai hang|hang nao|mon nao|\bmat hang\b",
      "product lines", lambda t: _has(t, "order_lines", "product_name")),
-    (r"cong no|con no|\bno\b|tra gop|ghi no|chua tra|chua thanh toan|(?<!dong )\bgop (thang|ky)",
+    (r"cong no|con no|\bno\b|tra gop|ghi no|chua tra|chua thanh toan|(?<!dong )(?<!lai )\bgop (thang|ky)",
      "debt / payments", lambda t: _has(t, "payments") or _has(t, "orders", "debt_remaining")
      or _has(t, "orders", "paid_amount") or _has(t, "orders", "payment_method")),
     (r"nhan vien|thu ngan|nguoi ban|\bnv\b|\btho (nao|gioi|lanh nghe|chinh)",
@@ -453,7 +426,8 @@ _NEEDS = [
      "branch", lambda t: _has(t, "orders", "branch")),
     (r"tien mat|chuyen khoan|vi dien tu|momo|quet the|phuong thuc thanh toan|hinh thuc thanh toan|\bcod\b",
      "payment method", lambda t: _has(t, "orders", "payment_method") or _has(t, "payments", "method")),
-    (r"loi nhuan|lai gop|lai rong|tien lai|\blai (bao|may|duoc|it|nhieu|cao|thap)|gia von|\blo von\b|\bbi lo\b|\blo (bao|may|nhieu)",
+    (r"loi nhuan|lai gop|lai rong|tien lai|gia von|\blo von\b|\bbi lo\b|\b(?:lai|loi) hay lo\b|"
+     r"(?:^|\b(?:duoc|kiem|co|la|thi|quan|tiem|shop) )lai (?:bao nhieu|duoc bao)",
      "cost", lambda t: _has(t, "order_lines", "cost_per_unit") or _has(t, "products", "cost_price")
      or _has(t, "purchases")),
 ]

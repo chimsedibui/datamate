@@ -2,9 +2,9 @@
 # Pre-submission checks (organizer guide section 10) for the built image.
 #
 # Usage:
-#   TEAM=<team> bash scripts/check_submission.sh static                          # platform, size, layout, offline imports
-#   TEAM=<team> bash scripts/check_submission.sh run <data_dir> <result_dir>     # official scoring command + output check
-#   TEAM=<team> bash scripts/check_submission.sh compare <data_dir> <run1> <run2> # reproducibility of two runs
+#   TEAM=<team> bash scripts/release/check_submission.sh static                          # platform, size, layout, offline imports
+#   TEAM=<team> bash scripts/release/check_submission.sh run <data_dir> <result_dir>     # official scoring command + output check
+#   TEAM=<team> bash scripts/release/check_submission.sh compare <data_dir> <run1> <run2> # reproducibility of two runs
 #
 # `run` needs 2 GPUs (device 0,1) and executes predict.sh exactly as the organizers do.
 set -euo pipefail
@@ -28,7 +28,7 @@ static)
     test -f /code/models/Qwen3-14B/config.json
     test -s /code/models/Qwen3-14B.sha256
     (cd /code/models/Qwen3-14B && sha256sum --quiet -c ../Qwen3-14B.sha256) && echo "weights checksum OK"
-    PYTHONPATH=/code/pydeps python3 -c "import sys; sys.path.insert(0, \"/code/src\"); import datamate.agent, datamate.mapper, pandas, openpyxl, pyarrow; print(\"app imports OK, pandas\", pandas.__version__)"
+    PYTHONPATH=/code/pydeps python3 -c "import sys; sys.path.insert(0, \"/code/src\"); import datamate.qa.agent, datamate.semantic.mapper, pandas, openpyxl, pyarrow; print(\"app imports OK, pandas\", pandas.__version__)"
     python3 -c "import vllm, torch; print(\"vllm\", vllm.__version__, \"torch\", torch.__version__)"
     grep -q "^set -uo pipefail" /code/predict.sh && echo "predict.sh present"'
   ;;

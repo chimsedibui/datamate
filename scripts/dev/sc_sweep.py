@@ -3,7 +3,7 @@
 
 For each sample count k (first k samples) and vote threshold `need`, re-run the vote and score against answers.jsonl.
 
-    python scripts/sc_sweep.py --logs out/dev_sc/logs --split data/train_dev
+    python scripts/dev/sc_sweep.py --logs out/dev_sc/logs --split data/train_dev
 """
 from __future__ import annotations
 
@@ -12,9 +12,9 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from datamate.agent import vote  # noqa: E402
-from datamate.scoring import score_one  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
+from datamate.qa.agent import vote  # noqa: E402
+from datamate.core.scoring import score_one  # noqa: E402
 
 
 def main():

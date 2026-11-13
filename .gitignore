@@ -11,3 +11,4 @@ result/
 .env.bak
 out/
 scripts/gcp/.zone
+.claude/worktrees/
