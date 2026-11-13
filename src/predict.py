@@ -121,7 +121,8 @@ def main():
     agent = Agent(llm, rulebook, str(split / "calendar.csv"))
     for b in bizs:
         tables, meta, source = load_business(a.work, split, b)
-        agent.set_business(b, tables, meta, source)
+        rd = split / "data" / b / "README.md"
+        agent.set_business(b, tables, meta, source, rd.read_text() if rd.exists() else "")
         print(f"{b}: {source} ({len(tables)} tables)", flush=True)
 
     t0 = time.time()

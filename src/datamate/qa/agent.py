@@ -78,6 +78,9 @@ HELPERS_DOC = """Globals available in your code:
 - debt_flow(start, end)                 per credit order: added (nợ thêm / mua chịu thêm: unpaid part of orders dated
                                         in the period after same-day payments) and repaid (trả nợ / thu nợ: payments
                                         after the order day, dated in the period); cust_key, cust_name.
+- due_dates(purchase_date, due_day, n)  due dates (Timestamps) of n monthly instalments (trả góp): instalment i falls
+                                        on day `due_day` of the i-th month after the purchase month. Instalments
+                                        due up to a day X = sum(d <= X for d in ...); overdue = due BEFORE X and unpaid.
 - fold_text(s) / norm_text(s)           scalar text normalisation (no diacritics / lowercase)
 """
 
@@ -237,6 +240,16 @@ def describe_tables(tables: dict[str, pd.DataFrame], meta: dict) -> str:
     return "\n".join(out)
 
 
+def readme_conventions(text: str, max_chars: int = 5000) -> str:
+    """README without its file list and title (the intro, column notes and '## Quy ước' stay), capped."""
+    if not text:
+        return ""
+    parts = re.split(r"\n(?=## )", text.strip())
+    keep = [p for p in parts if not re.match(r"## File\b", p)]
+    out = re.sub(r"^# .*\n+", "", "\n".join(keep)).strip()
+    return out[:max_chars]
+
+
 def raw_tables(biz_dir: str) -> dict[str, pd.DataFrame]:
     store = RawStore(biz_dir)
     out = {}
@@ -298,14 +311,29 @@ class Agent:
         self.max_repairs = max_repairs
         self.timeout = timeout
         self._ctx: dict[str, tuple[dict, str, str]] = {}
+        self.rules = qparse.parse_rulebook(rulebook) if os.environ.get("DM_RULE_HINTS", "1") != "0" else []
+        self._industry: dict[str, str | None] = {}
 
-    def set_business(self, biz_id: str, tables: dict[str, pd.DataFrame], meta: dict, source: str):
-        self._ctx[biz_id] = (tables, describe_tables(tables, meta), source)
+    def set_business(self, biz_id: str, tables: dict[str, pd.DataFrame], meta: dict, source: str,
+                     readme: str = ""):
+        """`readme`: the shop's README.md. Its conventions (how the shop records commissions, instalments,
+        warranty...) are shown to the QA model; without them it guesses definitions the README states."""
+        desc = describe_tables(tables, meta)
+        readme = readme_conventions(readme) if os.environ.get("DM_QA_README", "1") != "0" else ""
+        if readme:
+            desc += ("\n\n## Shop README (written for the RAW files; the tables above are the cleaned version, so "
+                     "raw column names differ — use it for the shop's own conventions and definitions)\n" + readme)
+        self._ctx[biz_id] = (tables, desc, source)
+        dom = meta.get("domain") if isinstance(meta.get("domain"), dict) else {}
+        self._industry[biz_id] = qparse.industry_of(
+            self.rules, " ".join([str(meta.get("industry") or ""), str(dom.get("industry") or ""),
+                                  readme.split("\n## ")[0]])) if self.rules else None
 
     def _env(self, tables, as_of):
         env = {"t": tables, "cal": self.cal, "AS_OF": as_of, "pd": pd, "np": np, "re": re,
                "fold_text": parsers.fold_text, "norm_text": parsers.norm_text}
-        for n in ("valid_orders", "sales_lines", "month_range", "week_range", "tet_window", "match", "pct"):
+        for n in ("valid_orders", "sales_lines", "month_range", "week_range", "tet_window", "match", "pct",
+                  "due_dates"):
             env[n] = getattr(helpers, n)
         env["qty_in"] = lambda df, unit, convert=False: helpers.qty_in(tables, df, unit, convert)
         env["avg_price"] = lambda df, unit: helpers.avg_price(tables, df, unit)
@@ -363,7 +391,8 @@ class Agent:
         think = os.environ.get("DM_QA_THINK", "0") == "1"
         max_out = int(os.environ.get("DM_QA_MAX_TOKENS") or (16000 if think else 4000))
         as_of = pd.Timestamp(q["as_of_date"])
-        pre = qparse.analyze(q["question"], as_of, tables, self.cal)
+        pre = qparse.analyze(q["question"], as_of, tables, self.cal, self.rules,
+                             self._industry.get(q["business_id"]))
         periods = qparse.resolve_periods(q["question"], as_of, self.cal)
         user = (f"## Tables of business {q['business_id']} (source: {source})\n{desc}\n\n"
                 f"## Question\nAS_OF (hôm nay) = {as_of.date()} ({as_of.day_name()})\n{q.get('question_raw', q['question'])}"

@@ -7,7 +7,9 @@ resolved here with fixed rules (rulebook §2 time conventions) so the model only
 """
 from __future__ import annotations
 
+import math
 import re
+from collections import Counter
 
 import pandas as pd
 
@@ -325,7 +327,8 @@ def helper_hints(q: str, tables: dict) -> list[str]:
     return out
 
 
-def analyze(q: str, as_of, tables: dict, cal: pd.DataFrame | None = None) -> str:
+def analyze(q: str, as_of, tables: dict, cal: pd.DataFrame | None = None, rules: list[dict] | None = None,
+            industry: str | None = None) -> str:
     a = pd.Timestamp(as_of)
     lines = []
     nq = normalize_question(q)
@@ -347,4 +350,73 @@ def analyze(q: str, as_of, tables: dict, cal: pd.DataFrame | None = None) -> str
     th = type_hint(q)
     if th:
         lines.append(f"Likely answer type: {th}")
+    rr = relevant_rules(q, rules, industry) if rules else []
+    if rr:
+        lines.append("Rulebook rows that apply to this shop / question (follow them literally; they override your "
+                     "own reading of the words):")
+        lines += [f"- [{r['industry'] or r['section']}] {r['key']}: {r['text']}" for r in rr]
     return "\n".join(lines)
+
+
+# ---------------------------------------------------------------- rulebook rows relevant to a question
+
+_GENERIC_SHOP = {"cua", "hang", "quan", "tiem", "shop", "nha"}
+
+
+def _rule_tokens(s: str) -> list[str]:
+    return [w for w in re.findall(r"[a-z0-9]+", fold_text(re.sub(r"[*`]", "", s)) or "") if len(w) > 1]
+
+
+def parse_rulebook(text: str) -> list[dict]:
+    """Rows of the rulebook's `| Luật | Mặc định |` tables: {section, industry, key, text, key_tokens, phrases}.
+    `industry` is the `###` heading for rows of per-industry sections (None for general rules)."""
+    rows, section, industry = [], "", None
+    for ln in text.splitlines():
+        if ln.startswith("## "):
+            section, industry = ln[3:].strip(), None
+        elif ln.startswith("### "):
+            industry = ln[4:].strip()
+        elif ln.startswith("|") and ln.count("|") >= 3:
+            cells = [c.strip() for c in ln.strip().strip("|").split("|", 1)]
+            if len(cells) != 2 or set(cells[0]) <= set("-: ") or fold_text(cells[0]) in ("luat", ""):
+                continue
+            key, body = cells
+            phrases = [" ".join(_rule_tokens(p)) for p in re.findall(r"\*\*(.+?)\*\*", key + " " + body)]
+            rows.append({"section": section, "industry": industry, "key": key, "text": body,
+                         "key_tokens": set(_rule_tokens(key)),
+                         "phrases": [p for p in phrases if len(p.split()) >= 2]})
+    df = Counter(w for r in rows for w in r["key_tokens"])
+    n = max(len(rows), 1)
+    for r in rows:
+        r["idf"] = {w: math.log(1 + n / df[w]) for w in r["key_tokens"]}
+    return rows
+
+
+def industry_of(rules: list[dict], context: str) -> str | None:
+    """The per-industry rulebook section this shop belongs to, from its industry label / README intro (None if
+    unclear). Pass a short description: a long README mentions other trades in passing."""
+    ctx = " ".join(_rule_tokens(context))
+    best, best_n = None, 0
+    for ind in sorted({r["industry"] for r in rules if r["industry"]}):
+        name = " ".join(w for w in _rule_tokens(ind) if w not in _GENERIC_SHOP) or " ".join(_rule_tokens(ind))
+        n = len(re.findall(rf"\b{re.escape(name)}\b", ctx))
+        if n > best_n:
+            best, best_n = ind, n
+    return best
+
+
+def relevant_rules(q: str, rules: list[dict], industry: str | None = None, k: int = 2) -> list[dict]:
+    """Rulebook rows to restate next to the question (precision first: a wrong rule misleads more than none):
+    every row of the shop's own industry section, plus general rows whose whole key the question spells out
+    ("khách sộp nhất", "giờ cao điểm"). Other industries' sections and the time / vocabulary sections (handled by
+    resolve_periods and qnorm) are never returned."""
+    qt = set(_rule_tokens(q))
+    own = [r for r in rules if industry and r["industry"] == industry][:8]
+    general = []
+    for r in rules:
+        if r["industry"] or re.search(r"thoi gian|tu ngu|dap an", fold_text(r["section"]) or ""):
+            continue
+        if len(r["key_tokens"]) >= 2 and r["key_tokens"] <= qt:
+            general.append((sum(r["idf"].values()), r))
+    general.sort(key=lambda x: -x[0])
+    return own + [r for _, r in general[:k]]

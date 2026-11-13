@@ -467,6 +467,17 @@ def debt_flow(t: dict, start, end, as_of=None) -> pd.DataFrame:
     return with_customer(t, o.loc[(o["added"] > 0) | (o["repaid"] > 0), cols].reset_index(drop=True))
 
 
+def due_dates(purchase_date, due_day, n) -> list[pd.Timestamp]:
+    """Due dates of n monthly instalments: instalment i (1..n) falls on day `due_day` of the i-th month after the
+    purchase month (day clipped to the month's last day)."""
+    p = pd.Timestamp(purchase_date)
+    out = []
+    for i in range(1, int(n) + 1):
+        first = (p.to_period("M") + i).to_timestamp()
+        out.append(first + pd.Timedelta(days=min(int(due_day), first.days_in_month) - 1))
+    return out
+
+
 def pct(part, whole) -> float | None:
     """part/whole as a percentage rounded to 2 decimals."""
     return None if not whole else round(float(part) / float(whole) * 100, 2)
