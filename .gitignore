@@ -1,0 +1,33 @@
+# Competition data (regulations 4.3: stays with the team), model weights, run outputs
+data/
+models/
+runs/
+outputs/
+
+# Python, notebooks, tooling
+__pycache__/
+*.pyc
+.venv/
+.venv-train/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+.ipynb_checkpoints/
+unsloth_compiled_cache/
+
+# Of unchecked origin
+code.zip
+litreview-*.pdf
+build/
+
+# Local-only: slide decks, the organizers' guide PDF, Docker build outputs
+*.pptx
+zac2026_*.pdf
+result_docker/
+zaic2026_datamate_*.tar.gz*
+
+# local secrets (OpenAI key for data generation)
+.env
+
+# DuckDB spill files of local runs
+.tmp/
